@@ -72,3 +72,28 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
+
+
+
+
+Verify host prerequisites
+nvidia-smi
+docker --version
+docker compose version
+
+Verify Docker can access GPU
+docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
+
+From project root, ensure local Docker context
+unset DOCKER_HOST DOCKER_CONTEXT
+docker context use default
+
+Start the app in production mode
+docker compose up --build
+
+Open
+UI: http://localhost:3000
+API docs: http://localhost:8000/docs
+
+Stop when done
+docker compose down
