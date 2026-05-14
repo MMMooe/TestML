@@ -23,6 +23,12 @@ class ClassificationAdapter(InferenceAdapter):
             allow_tensorrt_fallback=allow_tensorrt_fallback,
         )
         self.backend = self.runner.backend
+        self.supports_batch = hasattr(self.runner, "predict_batch")
 
     def predict(self, image: ImageRecord) -> PredictionSummary:
         return self.runner.predict(image.path)
+
+    def predict_many(self, images: list[ImageRecord]) -> list[PredictionSummary]:
+        if self.supports_batch:
+            return self.runner.predict_batch([image.path for image in images])
+        return super().predict_many(images)

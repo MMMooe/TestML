@@ -194,7 +194,11 @@ export default function Home() {
         if (latest.state === "completed") {
             const resultCount = refreshed?.resultsResponse.total ?? 0;
             const metricDetail = refreshed?.metricsResponse.available ? ` Metrics available.` : " Metrics not available.";
-            appendRunLog("success", "Job completed", `${latest.processed}/${latest.total} images processed. ${resultCount} gallery item${resultCount === 1 ? "" : "s"}.${metricDetail}`);
+            appendRunLog(
+                "success",
+                "Job completed",
+                `${latest.message}. ${resultCount} gallery item${resultCount === 1 ? "" : "s"}.${metricDetail}`
+            );
             setNotice("Job completed");
         } else {
             const message = latest.error || latest.message || "Job failed";

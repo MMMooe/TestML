@@ -158,6 +158,12 @@ Run behavior:
 - Images only: inference-only job, predictions gallery, no metrics.
 - Images plus JSON: evaluation-and-inference job, predictions gallery, metrics, and ground-truth details.
 
+## Batch Size And Throughput
+
+The run setup batch size is used for PyTorch CUDA inference. Larger batches reduce per-image GPU launch overhead and reduce status-file writes because the backend updates job progress once per batch. Increase batch size until GPU memory becomes the limiting factor.
+
+TensorRT engines may be fixed to the batch shape used when the `.plan` was built. If a TensorRT engine is uploaded, build it with the batch/input profile you plan to use in production.
+
 ## TensorRT Engines
 
 TensorRT engines are not portable model files. Build each `.plan` for the same TensorRT major/minor version, CUDA runtime family, GPU architecture, input shape, and precision profile used by the production API image.

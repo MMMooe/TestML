@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from time import perf_counter
 
 from app.evaluator.adapters.classification import ClassificationAdapter
 from app.evaluator.annotations import is_prediction_correct
@@ -13,6 +14,7 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
     storage = Storage()
     status_path = storage.job_dir(job_id) / "status.json"
     status = JobStatus.model_validate(read_json(status_path))
+    started = perf_counter()
 
     try:
         manifest = load_manifest(request.dataset_id, storage)
@@ -31,7 +33,9 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
             allow_tensorrt_fallback=request.allow_tensorrt_fallback,
         )
         status.inference_backend = getattr(adapter, "backend", None)
-        status.message = f"Running {status.inference_backend or 'CUDA'} inference"
+        effective_batch_size = request.batch_size if getattr(adapter, "supports_batch", False) else 1
+        batch_detail = f"batch size {effective_batch_size}" if effective_batch_size > 1 else "single-image batches"
+        status.message = f"Running {status.inference_backend or 'CUDA'} inference with {batch_detail}"
         write_json(status_path, status)
 
         results: list[ResultGalleryItem] = []
@@ -39,42 +43,41 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
         comparable = 0
         failed = 0
 
-        for index, image in enumerate(manifest.images, start=1):
-            error = None
-            prediction = None
-            try:
-                prediction = adapter.predict(image)
-            except Exception as exc:  # keep the gallery useful even when one image fails
-                failed += 1
-                error = str(exc)
+        for batch_start, batch_images in _batched(manifest.images, effective_batch_size):
+            batch_predictions = _predict_batch(adapter, batch_images)
 
-            if prediction is None:
-                from app.schemas import PredictionSummary
+            for offset, image in enumerate(batch_images):
+                prediction, error = batch_predictions[offset]
+                if error is not None:
+                    failed += 1
 
-                prediction = PredictionSummary(raw={})
+                if prediction is None:
+                    from app.schemas import PredictionSummary
 
-            is_correct = is_prediction_correct(prediction.label, image.annotation) if manifest.has_annotations else None
-            if is_correct is not None:
-                comparable += 1
-                if is_correct:
-                    correct += 1
+                    prediction = PredictionSummary(raw={})
 
-            results.append(
-                ResultGalleryItem(
-                    id=image.id,
-                    filename=image.filename,
-                    image_url=f"/assets/{image.asset_path}",
-                    job_kind=manifest.job_kind,
-                    prediction=prediction,
-                    ground_truth=image.annotation if manifest.has_annotations else None,
-                    is_correct=is_correct,
-                    error=error,
+                is_correct = is_prediction_correct(prediction.label, image.annotation) if manifest.has_annotations else None
+                if is_correct is not None:
+                    comparable += 1
+                    if is_correct:
+                        correct += 1
+
+                results.append(
+                    ResultGalleryItem(
+                        id=image.id,
+                        filename=image.filename,
+                        image_url=f"/assets/{image.asset_path}",
+                        job_kind=manifest.job_kind,
+                        prediction=prediction,
+                        ground_truth=image.annotation if manifest.has_annotations else None,
+                        is_correct=is_correct,
+                        error=error,
+                    )
                 )
-            )
 
-            status.processed = index
-            status.progress = index / max(manifest.image_count, 1)
-            status.message = f"Processed {index} of {manifest.image_count} images"
+            status.processed = min(batch_start + len(batch_images), manifest.image_count)
+            status.progress = status.processed / max(manifest.image_count, 1)
+            status.message = f"Processed {status.processed} of {manifest.image_count} images with {batch_detail}"
             write_json(status_path, status)
 
         write_json(storage.results_dir / job_id / "results.json", [result.model_dump(mode="json") for result in results])
@@ -92,7 +95,8 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
         status.state = "completed"
         status.progress = 1.0
         status.completed_at = datetime.now(timezone.utc)
-        status.message = "Job completed"
+        elapsed = max(perf_counter() - started, 0.001)
+        status.message = f"Job completed in {elapsed:.1f}s ({manifest.image_count / elapsed:.2f} images/s)"
         write_json(status_path, status)
     except Exception as exc:
         status.state = "failed"
@@ -118,6 +122,31 @@ def _select_adapter(
             allow_tensorrt_fallback=allow_tensorrt_fallback,
         )
     raise ValueError(f"Unsupported adapter: {adapter_name}")
+
+
+def _batched(items: list, batch_size: int):
+    size = max(batch_size, 1)
+    for start in range(0, len(items), size):
+        yield start, items[start : start + size]
+
+
+def _predict_batch(adapter, images):
+    try:
+        predictions = adapter.predict_many(images)
+        if len(predictions) != len(images):
+            raise RuntimeError(f"Adapter returned {len(predictions)} predictions for {len(images)} images")
+        return [(prediction, None) for prediction in predictions]
+    except Exception as batch_error:
+        if len(images) == 1:
+            return [(None, str(batch_error))]
+
+    predictions = []
+    for image in images:
+        try:
+            predictions.append((adapter.predict(image), None))
+        except Exception as error:  # keep one failed image from failing the whole batch
+            predictions.append((None, str(error)))
+    return predictions
 
 
 def load_results(job_id: str, storage: Storage) -> list[ResultGalleryItem]:

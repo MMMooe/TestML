@@ -54,10 +54,15 @@ class CudaModelRunner:
             self.model.eval()
 
     def predict(self, image_path: str) -> PredictionSummary:
-        tensor = self._preprocess(image_path)
-        with self.torch.no_grad():
+        return self.predict_batch([image_path])[0]
+
+    def predict_batch(self, image_paths: list[str]) -> list[PredictionSummary]:
+        if not image_paths:
+            return []
+        tensor = self._preprocess_batch(image_paths)
+        with self.torch.inference_mode():
             output = self.model(tensor)
-        return self._to_prediction(output)
+        return self._to_predictions(output, len(image_paths))
 
     def _load_model(self, model_path: Path) -> Any:
         try:
@@ -76,24 +81,46 @@ class CudaModelRunner:
             raise RuntimeError("Loaded .pt file is not callable. Prefer a TorchScript model or saved nn.Module.")
         return model
 
-    def _preprocess(self, image_path: str):
+    def _preprocess_batch(self, image_paths: list[str]):
+        arrays = [self._preprocess_array(image_path) for image_path in image_paths]
+        batch = np.stack(arrays, axis=0)
+        return self.torch.from_numpy(batch).to(self.device, non_blocking=True)
+
+    def _preprocess_array(self, image_path: str) -> np.ndarray:
         image = Image.open(image_path).convert("RGB").resize((224, 224))
         array = np.asarray(image, dtype=np.float32) / 255.0
-        array = np.transpose(array, (2, 0, 1))
-        tensor = self.torch.from_numpy(array).unsqueeze(0).to(self.device)
-        return tensor
+        return np.transpose(array, (2, 0, 1))
 
     def _to_prediction(self, output: Any) -> PredictionSummary:
+        return self._to_predictions(output, 1)[0]
+
+    def _to_predictions(self, output: Any, batch_size: int) -> list[PredictionSummary]:
         tensor = self._extract_tensor(output)
         if tensor is None:
-            return PredictionSummary(raw=self._jsonable(output))
+            raw = self._jsonable(output)
+            return [PredictionSummary(raw=raw) for _ in range(batch_size)]
 
-        tensor = tensor.detach().float().squeeze()
+        tensor = tensor.detach().float()
+        if batch_size == 1:
+            return [self._tensor_to_prediction(tensor.squeeze())]
+
         if tensor.ndim == 0:
+            raise RuntimeError("Model returned a scalar for a batched input")
+        if tensor.shape[0] != batch_size:
+            raise RuntimeError(
+                f"Model output batch dimension {tensor.shape[0]} does not match input batch size {batch_size}"
+            )
+
+        rows = tensor.reshape(batch_size, -1)
+        return [self._tensor_to_prediction(row) for row in rows]
+
+    def _tensor_to_prediction(self, tensor: Any) -> PredictionSummary:
+        tensor = tensor.reshape(-1)
+        if tensor.numel() == 0:
+            return PredictionSummary(raw={"shape": list(tensor.shape), "backend": "torch-cuda"})
+        if tensor.numel() == 1:
             value = float(tensor.item())
-            return PredictionSummary(label=str(round(value, 4)), confidence=None, raw=value)
-        if tensor.ndim > 1:
-            tensor = tensor.reshape(-1)
+            return PredictionSummary(label=str(round(value, 4)), confidence=None, raw={"value": value, "backend": "torch-cuda"})
 
         scores = self.torch.softmax(tensor, dim=0)
         top_count = min(5, scores.numel())
