@@ -22,12 +22,15 @@ import {
     uploadModel
 } from "@/lib/api";
 
+type DatasetInputMode = "images" | "archive";
+
 export default function Home() {
     const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
     const [modelFiles, setModelFiles] = useState<File[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [annotationFiles, setAnnotationFiles] = useState<File[]>([]);
     const [archiveFiles, setArchiveFiles] = useState<File[]>([]);
+    const [datasetInputMode, setDatasetInputMode] = useState<DatasetInputMode>("images");
     const [adapter, setAdapter] = useState("classification");
     const [batchSize, setBatchSize] = useState(1);
     const [confidenceThreshold, setConfidenceThreshold] = useState(0);
@@ -51,14 +54,25 @@ export default function Home() {
     }, [query, correctness, minConfidence, status?.id, status?.state]);
 
     const computedMode = useMemo(() => {
-        if (archiveFiles.length > 0 && annotationFiles.length === 0) {
+        if (datasetInputMode === "archive") {
             return "Archive contents decide: images only runs inference; images plus JSON runs evaluation + inference.";
         }
         if (annotationFiles.length > 0) return "Evaluation + inference: JSON annotations will be compared with predictions.";
         return "Inference only: no JSON annotations selected.";
-    }, [annotationFiles.length, archiveFiles.length]);
+    }, [annotationFiles.length, datasetInputMode]);
 
-    const canStart = modelFiles.length === 1 && (imageFiles.length > 0 || archiveFiles.length === 1) && !busy;
+    const hasDatasetInput = datasetInputMode === "images" ? imageFiles.length > 0 : archiveFiles.length === 1;
+    const canStart = modelFiles.length === 1 && hasDatasetInput && !busy;
+
+    function activateDatasetInputMode(mode: DatasetInputMode) {
+        setDatasetInputMode(mode);
+        if (mode === "images") {
+            setArchiveFiles([]);
+        } else {
+            setImageFiles([]);
+            setAnnotationFiles([]);
+        }
+    }
 
     async function startRun() {
         if (!canStart) return;
@@ -70,9 +84,9 @@ export default function Home() {
         try {
             const model = await uploadModel(modelFiles[0]);
             const dataset = await uploadDataset({
-                images: imageFiles,
-                annotation: annotationFiles[0] || null,
-                archive: archiveFiles[0] || null
+                images: datasetInputMode === "images" ? imageFiles : [],
+                annotation: datasetInputMode === "images" ? annotationFiles[0] || null : null,
+                archive: datasetInputMode === "archive" ? archiveFiles[0] || null : null
             });
             if (dataset.warnings.length) setNotice(dataset.warnings.join(" "));
             const created = await createJob({
@@ -140,9 +154,61 @@ export default function Home() {
             <div className="grid min-h-0 gap-4 p-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:p-6">
                 <aside className="space-y-4 overflow-auto scrollbar-thin">
                     <UploadZone label="Model" hint="Required .pt file" accept=".pt" files={modelFiles} onChange={(files) => setModelFiles(files.slice(0, 1))} kind="model" />
-                    <UploadZone label="Images" hint="Required unless the zip contains images" accept="image/*" multiple files={imageFiles} onChange={setImageFiles} kind="images" />
-                    <UploadZone label="Annotations" hint="Optional JSON for evaluation" accept=".json,application/json" files={annotationFiles} onChange={(files) => setAnnotationFiles(files.slice(0, 1))} kind="json" />
-                    <UploadZone label="Dataset zip" hint="Optional archive with images and maybe JSON" accept=".zip,application/zip" files={archiveFiles} onChange={(files) => setArchiveFiles(files.slice(0, 1))} kind="archive" />
+
+                    <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
+                        <h2 className="text-sm font-semibold text-stone-900">Dataset upload way</h2>
+                        <p className="mt-1 text-xs leading-5 text-stone-500">Choose one input mode. Only one mode can be active for a run.</p>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                className={`rounded-lg border px-3 py-2 text-xs font-semibold ${datasetInputMode === "images" ? "border-teal-600 bg-teal-50 text-teal-800" : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                                    }`}
+                                onClick={() => activateDatasetInputMode("images")}
+                            >
+                                Images + annotation
+                            </button>
+                            <button
+                                type="button"
+                                className={`rounded-lg border px-3 py-2 text-xs font-semibold ${datasetInputMode === "archive" ? "border-teal-600 bg-teal-50 text-teal-800" : "border-stone-200 bg-white text-stone-700 hover:bg-stone-50"
+                                    }`}
+                                onClick={() => activateDatasetInputMode("archive")}
+                            >
+                                Dataset zip
+                            </button>
+                        </div>
+                    </section>
+
+                    {datasetInputMode === "images" ? (
+                        <>
+                            <UploadZone
+                                label="Images"
+                                hint="Required image files"
+                                accept="image/*"
+                                multiple
+                                files={imageFiles}
+                                onChange={setImageFiles}
+                                maxVisibleItems={6}
+                                kind="images"
+                            />
+                            <UploadZone
+                                label="Annotations"
+                                hint="Optional JSON for evaluation"
+                                accept=".json,application/json"
+                                files={annotationFiles}
+                                onChange={(files) => setAnnotationFiles(files.slice(0, 1))}
+                                kind="json"
+                            />
+                        </>
+                    ) : (
+                        <UploadZone
+                            label="Dataset zip"
+                            hint="Required zip archive with images and optional JSON"
+                            accept=".zip,application/zip"
+                            files={archiveFiles}
+                            onChange={(files) => setArchiveFiles(files.slice(0, 1))}
+                            kind="archive"
+                        />
+                    )}
 
                     <RunControls
                         adapter={adapter}

@@ -7,6 +7,7 @@ type UploadZoneProps = {
     files: File[];
     onChange: (files: File[]) => void;
     multiple?: boolean;
+    maxVisibleItems?: number;
     kind: "model" | "images" | "json" | "archive";
 };
 
@@ -17,9 +18,10 @@ const icons = {
     archive: FileArchive
 };
 
-export function UploadZone({ label, hint, accept, files, onChange, multiple = false, kind }: UploadZoneProps) {
+export function UploadZone({ label, hint, accept, files, onChange, multiple = false, maxVisibleItems = 4, kind }: UploadZoneProps) {
     const Icon = icons[kind];
     const inputId = `upload-${kind}`;
+    const visibleFiles = files.slice(0, maxVisibleItems);
 
     return (
         <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
@@ -45,13 +47,13 @@ export function UploadZone({ label, hint, accept, files, onChange, multiple = fa
 
             {files.length > 0 && (
                 <div className="mt-3 space-y-2">
-                    {files.slice(0, 4).map((file) => (
+                    {visibleFiles.map((file) => (
                         <div key={`${file.name}-${file.size}`} className="flex items-center justify-between gap-3 rounded-lg bg-stone-50 px-3 py-2 text-xs text-stone-700">
                             <span className="truncate">{file.name}</span>
                             <span className="shrink-0 text-stone-500">{formatSize(file.size)}</span>
                         </div>
                     ))}
-                    {files.length > 4 && <p className="text-xs text-stone-500">{files.length - 4} more files selected</p>}
+                    {files.length > maxVisibleItems && <p className="text-xs text-stone-500">{files.length - maxVisibleItems} more files selected</p>}
                     <button
                         type="button"
                         className="inline-flex items-center gap-2 rounded-lg border border-stone-200 px-3 py-2 text-xs font-medium text-stone-700 hover:bg-stone-50"
