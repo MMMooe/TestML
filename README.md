@@ -198,7 +198,6 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-Job failed
+nvidia-smi -q | grep -i "Compute Mode"
 
-03:23:34 PM
-CUDA error: CUDA-capable device(s) is/are busy or unavailable CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect. For debugging consider passing CUDA_LAUNCH_BLOCKING=1. Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
+sudo nvidia-smi -c 0
