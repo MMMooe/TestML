@@ -196,207 +196,53 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
 
 
- docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c '
-echo devices;idia*;
-ls -l /dev/nvidia*;
-echo libs;p | grep -E "libcuda|libnvidia-ml" || true
-ldconfig -p | grep -E "libcuda|libnvidia-ml" || true
-'
-devices
-crw-rw-rw- 1 root root 235,   0 May 14 01:34 /dev/nvidia-uvm
-crw-rw-rw- 1 root root 235,   1 May 14 01:34 /dev/nvidia-uvm-tools
-crw-rw-rw- 1 root root 195,   0 May 14 01:34 /dev/nvidia0
-crw-rw-rw- 1 root root 195, 255 May 14 01:34 /dev/nvidiactl
-libs
-        libnvidia-ml.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1
-        libcudart.so.12 (libc6,x86-64) => /usr/local/cuda/targets/x86_64-linux/lib/libcudart.so.12
-        libcudadebugger.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libcudadebugger.so.1
-        libcuda.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libcuda.so.1
-ubuntu22@ubuntu22-O-E-M:~/Documents/TestML/TestML$ 
-
-sudo apt-get install -y nvidia-container-toolkitvidia-ctk runtime configure --runtime=docker --set-as-default
-sudo nvidia-ctk runtime configure --runtime=docker --set-as-default
-sudo systemctl restart dockermes|Default Runtime"
-docker info | grep -Ei "Runtimes|Default Runtime"
-Reading package lists... Done
-Building dependency tree... Done
-Reading state information... Done
-nvidia-container-toolkit is already the newest version (1.19.0-1).
-The following packages were automatically installed and are no longer required:
-  javascript-common libc-ares2 libjs-highlight.js libnode72
-Use 'sudo apt autoremove' to remove them.
-0 upgraded, 0 newly installed, 0 to remove and 122 not upgraded.
-INFO[0000] Loading config from /etc/docker/daemon.json  
-INFO[0000] Wrote updated config to /etc/docker/daemon.json 
-INFO[0000] It is recommended that docker daemon be restarted. 
- Runtimes: runc io.containerd.runc.v2 nvidia
- Default Runtime: nvidia
-
-If PyTorch inside the container cannot initialize CUDA, solve it at the **Docker NVIDIA runtime layer** first. The app cannot fix this from Python because CUDA is failing before model inference.
 
 
 
 
-docker compose run --rm --no-deps --entrypoint /bin/sh api -lc '
-echo env;
-env | grep -E "CUDA|NVIDIA";
-echo devices;
-ls -l /dev/nvidia* || true;
-echo libs;
-ldconfig -p | grep -E "libcuda|libnvidia-ml" || true
-'
-Container testml-api-run-832e5b9cffee Creating 
-Container testml-api-run-832e5b9cffee Created 
-env
-NV_CUDA_COMPAT_PACKAGE=cuda-compat-12-1
-CUDA_VERSION=12.1.1
-NVIDIA_REQUIRE_CUDA=cuda>=12.1 brand=tesla,driver>=470,driver<471 brand=unknown,driver>=470,driver<471 brand=nvidia,driver>=470,driver<471 brand=nvidiartx,driver>=470,driver<471 brand=geforce,driver>=470,driver<471 brand=geforcertx,driver>=470,driver<471 brand=quadro,driver>=470,driver<471 brand=quadrortx,driver>=470,driver<471 brand=titan,driver>=470,driver<471 brand=titanrtx,driver>=470,driver<471 brand=tesla,driver>=525,driver<526 brand=unknown,driver>=525,driver<526 brand=nvidia,driver>=525,driver<526 brand=nvidiartx,driver>=525,driver<526 brand=geforce,driver>=525,driver<526 brand=geforcertx,driver>=525,driver<526 brand=quadro,driver>=525,driver<526 brand=quadrortx,driver>=525,driver<526 brand=titan,driver>=525,driver<526 brand=titanrtx,driver>=525,driver<526
-NVIDIA_DRIVER_CAPABILITIES=compute,utility
-NV_CUDA_LIB_VERSION=12.1.1-1
-NV_CUDA_CUDART_VERSION=12.1.105-1
-NVIDIA_PRODUCT_NAME=CUDA
+
+This is a useful result: **Docker GPU injection is mostly working**.
+
+You have all the expected pieces inside both the clean CUDA container and the app container:
+
+```text
+/dev/nvidia0
+/dev/nvidiactl
+/dev/nvidia-uvm
+libcuda.so.1
+libnvidia-ml.so.1
 NVIDIA_VISIBLE_DEVICES=all
-devices
-crw-rw-rw- 1 root root 235,   0 May 14 01:34 /dev/nvidia-uvm
-crw-rw-rw- 1 root root 235,   1 May 14 01:34 /dev/nvidia-uvm-tools
-crw-rw-rw- 1 root root 195,   0 May 14 01:34 /dev/nvidia0
-crw-rw-rw- 1 root root 195, 255 May 14 01:34 /dev/nvidiactl
-libs
-        libnvidia-ml.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libnvidia-ml.so.1
-        libcudart.so.12 (libc6,x86-64) => /usr/local/cuda/targets/x86_64-linux/lib/libcudart.so.12
-        libcudadebugger.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libcudadebugger.so.1
-        libcuda.so.1 (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libcuda.so.1
-        libcuda.so (libc6,x86-64) => /usr/lib/x86_64-linux-gnu/libcuda.so
+CUDA_VISIBLE_DEVICES=None
+```
 
+So this is no longer the earlier “Docker cannot mount GPU devices” problem. It is now narrower:
 
+**NVIDIA runtime mounts the GPU, but PyTorch cannot initialize the CUDA runtime.**
 
-docker compose run --rm --no-deps --entrypoint python3 api - <<'PY'
-import os
-import torch
+The next likely causes are NVIDIA toolkit runtime mode/cgroups, a stale UVM/driver state, or this specific PyTorch/CUDA image combination on the host.
 
-print("NVIDIA_VISIBLE_DEVICES:", os.environ.get("NVIDIA_VISIBLE_DEVICES"))
-print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-print("torch:", torch.__version__)
-print("torch cuda:", torch.version.cuda)
-print("device count:", torch.cuda.device_count())
-PYint("cuda tensor ok:", float(x.sum()))cuda")le())
-Container testml-api-run-f21d31bdf217 Creating 
-Container testml-api-run-f21d31bdf217 Created 
-NVIDIA_VISIBLE_DEVICES: all
-CUDA_VISIBLE_DEVICES: None
-torch: 2.3.1+cu121
-torch cuda: 12.1
-device count: 1
-cuda available: False
-/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py:118: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
-  return torch._C._cuda_getDeviceCount() > 0
-Traceback (most recent call last):
-  File "<stdin>", line 11, in <module>
-  File "/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py", line 293, in _lazy_init
-    torch._C._cuda_init()
-RuntimeError: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero.
+Try these in order.
 
+**1. Run CUDA sample-style test, not PyTorch**
+This checks whether CUDA runtime works at all inside a clean container:
 
+```bash
+docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
+```
 
-
-
-
-
-
-
-
-Do this in order on the Ubuntu PC.
-
-**1. Verify Docker GPU injection outside the app**
-Run a clean CUDA container, not your app image:
+Then:
 
 ```bash
 docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c '
-echo devices;
+cat /proc/driver/nvidia/version;
 ls -l /dev/nvidia*;
-echo libs;
-ldconfig -p | grep -E "libcuda|libnvidia-ml" || true
 '
 ```
 
-Expected: `/dev/nvidia0`, `/dev/nvidiactl`, and `libcuda.so` / `libnvidia-ml.so`.
+If `nvidia-smi` fails inside Docker, fix host/runtime before PyTorch.
 
-If this fails, fix NVIDIA Container Toolkit.
-
-**2. Reconfigure NVIDIA Container Toolkit**
-```bash
-sudo apt-get install -y nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker --set-as-default
-sudo systemctl restart docker
-docker info | grep -Ei "Runtimes|Default Runtime"
-```
-
-You want to see `nvidia` listed, ideally:
-
-```text
-Default Runtime: nvidia
-```
-
-Then recreate containers:
-
-```bash
-docker compose down --remove-orphans
-docker compose up -d --force-recreate
-```
-
-**3. Check for bad CUDA env vars**
-On the host:
-
-```bash
-env | grep -E "CUDA_VISIBLE_DEVICES|NVIDIA_VISIBLE_DEVICES"
-```
-
-If `CUDA_VISIBLE_DEVICES` is set, unset it before starting Compose:
-
-```bash
-unset CUDA_VISIBLE_DEVICES
-docker compose down --remove-orphans
-docker compose up -d --force-recreate
-```
-
-Your Compose already sets `NVIDIA_VISIBLE_DEVICES=all`, which is fine.
-
-**4. If Docker GPU test works but Compose still fails**
-Inspect what the app container actually receives:
-
-```bash
-docker compose run --rm --no-deps --entrypoint /bin/sh api -lc '
-echo env;
-env | grep -E "CUDA|NVIDIA";
-echo devices;
-ls -l /dev/nvidia* || true;
-echo libs;
-ldconfig -p | grep -E "libcuda|libnvidia-ml" || true
-'
-```
-
-If this shows devices/libs correctly, then test PyTorch inside the same container:
-
-```bash
-docker compose run --rm --no-deps --entrypoint python3 api - <<'PY'
-import os
-import torch
-
-print("NVIDIA_VISIBLE_DEVICES:", os.environ.get("NVIDIA_VISIBLE_DEVICES"))
-print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-print("torch:", torch.__version__)
-print("torch cuda:", torch.version.cuda)
-print("device count:", torch.cuda.device_count())
-print("cuda available:", torch.cuda.is_available())
-
-x = torch.randn(1, 3, 224, 224, device="cuda")
-torch.cuda.synchronize()
-print("cuda tensor ok:", float(x.sum()))
-PY
-```
-
-**5. If PyTorch still says CUDA unknown error**
-Try a full NVIDIA runtime config reset:
+**2. Reset NVIDIA runtime cgroup mode**
+This one is very relevant for “device exists, libcuda exists, PyTorch still cannot init”:
 
 ```bash
 sudo nvidia-ctk config --set nvidia-container-cli.no-cgroups=false --in-place
@@ -404,18 +250,48 @@ sudo nvidia-ctk config --set nvidia-container-runtime.mode=legacy --in-place
 sudo nvidia-ctk runtime configure --runtime=docker --set-as-default
 sudo systemctl restart docker
 docker compose down --remove-orphans
-docker compose up -d --force-recreate
 ```
 
-Then rerun the PyTorch test.
-
-**6. Check rootless Docker**
-If you are using rootless Docker, GPU passthrough can be more fragile. Check:
+Then retest PyTorch:
 
 ```bash
-docker info | grep -i rootless
+docker compose run --rm --no-deps --entrypoint python3 api - <<'PY'
+import torch
+print("torch:", torch.__version__)
+print("torch cuda:", torch.version.cuda)
+print("device count:", torch.cuda.device_count())
+print("cuda available:", torch.cuda.is_available())
+x = torch.randn(1, 3, 224, 224, device="cuda")
+torch.cuda.synchronize()
+print("cuda tensor ok:", float(x.sum()))
+PY
 ```
 
-If it says rootless, use normal system Docker for this app.
+**3. Rebuild against a newer CUDA/PyTorch pair**
+Your host driver is very new: `580.126.09`, CUDA max `13.0`. CUDA 12.1 should be compatible, but if PyTorch `2.3.1+cu121` keeps failing while Docker device injection is correct, move the app to CUDA 12.4 or 12.6 PyTorch.
 
-Your host GPU and driver look fine. CUDA `13.0` on the host with CUDA `12.1` in the container is okay. The likely fix is reconfiguring NVIDIA Container Toolkit and recreating the containers so PyTorch receives a clean `/dev/nvidia*` and `libcuda` injection.
+For example, test quickly outside the app:
+
+```bash
+docker run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python - <<'PY'
+import torch
+print(torch.__version__, torch.version.cuda)
+print(torch.cuda.is_available())
+x = torch.randn(1, 3, 224, 224, device="cuda")
+torch.cuda.synchronize()
+print(float(x.sum()))
+PY
+```
+
+If this works, the practical fix is to upgrade the app image from CUDA 12.1 / PyTorch 2.3.1 to CUDA 12.4 / newer PyTorch.
+
+**4. Clean up the command typo**
+Your pasted script has corrupted text:
+
+```text
+PYint("cuda tensor ok:", float(x.sum()))cuda")le())
+```
+
+Use the clean block above. The typo did not cause the CUDA init failure, but it makes debugging output confusing.
+
+My read: because `/dev/nvidia*` and `libcuda` are present, I’d first try the `no-cgroups=false` + `legacy` reset. If PyTorch still fails, test `pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime`; a successful result there would point strongly to upgrading this app’s CUDA/PyTorch base.
