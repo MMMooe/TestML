@@ -194,3 +194,11 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
+
+
+
+
+Job failed
+
+03:23:34 PM
+CUDA error: CUDA-capable device(s) is/are busy or unavailable CUDA kernel errors might be asynchronously reported at some other API call, so the stacktrace below might be incorrect. For debugging consider passing CUDA_LAUNCH_BLOCKING=1. Compile with `TORCH_USE_CUDA_DSA` to enable device-side assertions.
