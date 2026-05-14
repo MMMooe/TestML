@@ -197,43 +197,70 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-
-docker compose down
-sudo systemctl restart docker
-docker compose up -d --no-build
-
-
-docker compose exec -T api sh -lc '
-echo env;
-env | grep -E "CUDA|NVIDIA";
-echo devices;
-ls -l /dev/nvidia*;
-echo libs;
-ldconfig -p | grep -E "libcuda|libnvidia-ml";
-'
-
-docker compose exec -T api python3 - <<'PY'
-import os
-import torch
-
-print("NVIDIA_VISIBLE_DEVICES:", os.environ.get("NVIDIA_VISIBLE_DEVICES"))
-print("CUDA_VISIBLE_DEVICES:", os.environ.get("CUDA_VISIBLE_DEVICES"))
-print("torch:", torch.__version__)
-print("torch cuda:", torch.version.cuda)
-print("device count:", torch.cuda.device_count())
-print("cuda available:", torch.cuda.is_available())
-
-if not torch.cuda.is_available():
-    raise SystemExit("CUDA is not usable inside the API container")
-
-print("device:", torch.cuda.get_device_name(0))
-x = torch.randn(1, 3, 224, 224, device="cuda")
-torch.cuda.synchronize()
-print("cuda tensor ok:", float(x.sum()))
-PY
-
-
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c '
-ls -l /dev/nvidia*;
-ldconfig -p | grep -E "libcuda|libnvidia-ml" || true
-'
+docker compose logs --tail=200 api
+api-1  | 
+api-1  | ==========
+api-1  | == CUDA ==
+api-1  | ==========
+api-1  | 
+api-1  | CUDA Version 12.1.1
+api-1  | 
+api-1  | Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+api-1  | 
+api-1  | This container image and its contents are governed by the NVIDIA Deep Learning Container License.
+api-1  | By pulling and using the container, you accept the terms and conditions of this license:
+api-1  | https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license
+api-1  | 
+api-1  | A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.
+api-1  | 
+api-1  | INFO:     Started server process [1]
+api-1  | INFO:     Waiting for application startup.
+api-1  | /usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py:118: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+api-1  |   return torch._C._cuda_getDeviceCount() > 0
+api-1  | ERROR:    Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 732, in lifespan
+api-1  |     async with self.lifespan_context(app) as maybe_state:
+api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 608, in __aenter__
+api-1  |     await self._router.startup()
+api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 711, in startup
+api-1  |     handler()
+api-1  |   File "/app/app/main.py", line 29, in startup
+api-1  |     assert_runtime_ready()
+api-1  |   File "/app/app/runtime.py", line 67, in assert_runtime_ready
+api-1  |     raise RuntimeError(runtime.message)
+api-1  | RuntimeError: production-cuda mode requires CUDA, but CUDA is not available
+api-1  | 
+api-1  | ERROR:    Application startup failed. Exiting.
+api-1  | 
+api-1  | ==========
+api-1  | == CUDA ==
+api-1  | ==========
+api-1  | 
+api-1  | CUDA Version 12.1.1
+api-1  | 
+api-1  | Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+api-1  | 
+api-1  | This container image and its contents are governed by the NVIDIA Deep Learning Container License.
+api-1  | By pulling and using the container, you accept the terms and conditions of this license:
+api-1  | https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license
+api-1  | 
+api-1  | A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.
+api-1  | 
+api-1  | INFO:     Started server process [1]
+api-1  | INFO:     Waiting for application startup.
+api-1  | /usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py:118: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+api-1  |   return torch._C._cuda_getDeviceCount() > 0
+api-1  | ERROR:    Traceback (most recent call last):
+api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 732, in lifespan
+api-1  |     async with self.lifespan_context(app) as maybe_state:
+api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 608, in __aenter__
+api-1  |     await self._router.startup()
+api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 711, in startup
+api-1  |     handler()
+api-1  |   File "/app/app/main.py", line 29, in startup
+api-1  |     assert_runtime_ready()
+api-1  |   File "/app/app/runtime.py", line 67, in assert_runtime_ready
+api-1  |     raise RuntimeError(runtime.message)
+api-1  | RuntimeError: production-cuda mode requires CUDA, but CUDA is not available
+api-1  | 
+api-1  | ERROR:    Application startup failed. Exiting.
