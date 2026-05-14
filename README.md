@@ -115,16 +115,40 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-ubuntu22@ubuntu22-O-E-M:~/Documents/TestML/TestML$ /home/ubuntu22/Documents/TestML/TestML/scripts/start_ubuntu_production.sh
-[start] Checking NVIDIA GPU visibility
-[start] Running Docker GPU smoke test
-Unable to find image 'nvidia/cuda:12.1.1-base-ubuntu22.04' locally
-12.1.1-base-ubuntu22.04: Pulling from nvidia/cuda
-aece8493d397: Pull complete 
-dd4939a04761: Pull complete 
-b0d7cc89b769: Pull complete 
-1532d9024b9c: Pull complete 
-04fc8a31fa53: Pull complete 
-Digest: sha256:457a4076c56025f51217bff647ca631c7880ad3dbf546b03728ba98297ebbc22
-Status: Downloaded newer image for nvidia/cuda:12.1.1-base-ubuntu22.04
-docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "nvidia-smi": executable file not found in $PATH: unknown.
+docker.io/nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+[install] Building Docker images
+[+] Building 30.3s (5/5) FINISHED                                                            
+ => [internal] load local bake definitions                                              0.0s
+ => => reading from stdin 1.14kB                                                        0.0s
+ => [web internal] load build definition from Dockerfile                                0.0s
+ => => transferring dockerfile: 612B                                                    0.0s
+ => [api internal] load build definition from Dockerfile.gpu                            0.0s
+ => => transferring dockerfile: 655B                                                    0.0s
+ => ERROR [web internal] load metadata for docker.io/library/node:20-alpine            30.0s
+ => ERROR [api internal] load metadata for docker.io/nvidia/cuda:12.1.1-cudnn8-runtim  30.0s
+------
+ > [web internal] load metadata for docker.io/library/node:20-alpine:
+------
+------
+ > [api internal] load metadata for docker.io/nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04:
+------
+[+] build 0/2
+ ⠙ Image testml-api Building                                                           30.3s 
+ ⠙ Image testml-web Building                                                           30.3s 
+Dockerfile:14
+
+--------------------
+
+  12 |     RUN npm run build
+
+  13 |     
+
+  14 | >>> FROM node:20-alpine AS runner
+
+  15 |     WORKDIR /app
+
+  16 |     ENV NODE_ENV=production
+
+--------------------
+
+target web: failed to solve: DeadlineExceeded: node:20-alpine: failed to resolve source metadata for docker.io/library/node:20-alpine: failed to do request: Head "https://registry-1.docker.io/v2/library/node/manifests/20-alpine": dial tcp: lookup registry-1.docker.io: i/o timeout
