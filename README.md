@@ -4,6 +4,8 @@ Dockerized app for running PyTorch `.pt` inference and optional evaluation on an
 
 Users upload a model, test images, and optionally a JSON annotation file. Images-only runs inference. Images plus JSON runs inference and evaluation. Results are displayed in a gallery with per-image details and exports.
 
+TensorRT `.plan` engines are supported as a first-class production path. When a `.plan` file is uploaded with a `.pt` model, the job uses TensorRT by default and fails clearly if the engine cannot run on the current TensorRT/CUDA/GPU runtime. The UI has an explicit fallback checkbox if you want to allow the `.pt` CUDA model to run instead.
+
 ## Quick Start After Clone (Ubuntu Production)
 
 From the repository root:
@@ -64,6 +66,12 @@ If your registry/network requires alternate image names, override the base image
 
 ```bash
 CUDA_BASE_IMAGE=nvidia/cuda:12.1.1-runtime-ubuntu22.04 NODE_BASE_IMAGE=node:20-alpine ./scripts/start_ubuntu_production.sh
+```
+
+The API image installs TensorRT runtime packages from the NVIDIA APT repository. If package names differ on your selected mirror, override them:
+
+```bash
+TENSORRT_APT_PACKAGES="python3-libnvinfer libnvinfer8 libnvinfer-plugin8 libnvinfer-bin" ./scripts/start_ubuntu_production.sh
 ```
 
 If it still fails, verify host DNS/network:
@@ -141,6 +149,7 @@ The backend runs in `production-cuda` mode and fails fast if CUDA is unavailable
 ## Dataset Modes
 
 - Model file: `.pt`, required.
+- TensorRT engine: `.plan`, optional but production-ready.
 - Images: required, either as individual image files or a zip archive.
 - JSON annotations: optional.
 
@@ -148,6 +157,22 @@ Run behavior:
 
 - Images only: inference-only job, predictions gallery, no metrics.
 - Images plus JSON: evaluation-and-inference job, predictions gallery, metrics, and ground-truth details.
+
+## TensorRT Engines
+
+TensorRT engines are not portable model files. Build each `.plan` for the same TensorRT major/minor version, CUDA runtime family, GPU architecture, input shape, and precision profile used by the production API image.
+
+Expected behavior:
+
+- No `.plan`: the app runs the uploaded `.pt` model with PyTorch CUDA.
+- `.plan` uploaded: the app runs TensorRT and records `tensorrt` as the job backend.
+- `.plan` uploaded and incompatible: the job fails before processing images unless explicit `.pt` fallback is enabled in the UI.
+
+Check runtime status at:
+
+```bash
+curl http://localhost:8000/runtime
+```
 
 ## Storage
 
@@ -163,87 +188,3 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
-
-
-
-
-
-
-
-The key problem is still here:
-
-```text
-ls: cannot access '/dev/nvidia*': No such file or directory
-```
-
-So the NVIDIA runtime is being selected, but it is still not mounting the driver devices/libs into the container.
-
-One suspicious config line is:
-
-```toml
-accept-nvidia-visible-devices-envvar-when-unprivileged = false
-```
-
-Your direct test uses:
-
-```bash
--e NVIDIA_VISIBLE_DEVICES=all
-```
-
-but the runtime may be refusing to honor that env var path. I’d change that to `true`, set Docker’s default runtime to NVIDIA, restart Docker, then retest.
-
-Run this on Ubuntu:
-
-```bash
-sudo nvidia-ctk config --set accept-nvidia-visible-devices-envvar-when-unprivileged=true --in-place
-sudo nvidia-ctk config --set nvidia-container-cli.no-cgroups=false --in-place
-sudo nvidia-ctk config --set nvidia-container-runtime.mode=legacy --in-place
-sudo nvidia-ctk runtime configure --runtime=docker --set-as-default
-sudo systemctl restart docker
-```
-
-Then check Docker now says default runtime is NVIDIA:
-
-```bash
-docker info | grep -Ei 'Runtimes|Default Runtime'
-```
-
-Expected:
-
-```text
-Runtimes: ... nvidia ...
-Default Runtime: nvidia
-```
-
-Then retest with no `nvidia-smi`, because that CUDA base image may not include it:
-
-```bash
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
-'echo devices; ls -l /dev/nvidia*; echo libs; ldconfig -p | grep -E "libcuda|libnvidia-ml" || true'
-```
-
-Expected: you should see `/dev/nvidia0`, `/dev/nvidiactl`, and `libcuda` / `libnvidia-ml`.
-
-If that passes, start the app:
-
-```bash
-SKIP_BUILD=1 SKIP_CUDA_PREPULL=1 SKIP_NODE_PREPULL=1 ./scripts/start_ubuntu_production.sh
-```
-
-If it still fails, enable NVIDIA runtime debug logs:
-
-```bash
-sudo nvidia-ctk config --set nvidia-container-runtime.debug=/var/log/nvidia-container-runtime.log --in-place
-sudo nvidia-ctk config --set nvidia-container-cli.debug=/var/log/nvidia-container-toolkit.log --in-place
-sudo systemctl restart docker
-```
-
-Run the failing Docker test again, then inspect:
-
-```bash
-sudo tail -n 200 /var/log/nvidia-container-runtime.log
-sudo tail -n 200 /var/log/nvidia-container-toolkit.log
-sudo journalctl -u docker --no-pager -n 120
-```
-
-Short version: do not debug the app further yet. The blocker is still Docker NVIDIA runtime injection. Once `docker run --gpus all ... ls -l /dev/nvidia*` works, the app should get past the CUDA startup check.

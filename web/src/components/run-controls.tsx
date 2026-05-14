@@ -7,6 +7,9 @@ type RunControlsProps = {
     setBatchSize: (value: number) => void;
     confidenceThreshold: number;
     setConfidenceThreshold: (value: number) => void;
+    hasTensorRTEngine: boolean;
+    allowTensorRTFallback: boolean;
+    setAllowTensorRTFallback: (value: boolean) => void;
     computedMode: string;
     disabled: boolean;
     onStart: () => void;
@@ -19,6 +22,9 @@ export function RunControls({
     setBatchSize,
     confidenceThreshold,
     setConfidenceThreshold,
+    hasTensorRTEngine,
+    allowTensorRTFallback,
+    setAllowTensorRTFallback,
     computedMode,
     disabled,
     onStart
@@ -69,6 +75,18 @@ export function RunControls({
                     />
                     <span className="text-stone-500">{Math.round(confidenceThreshold * 100)}%</span>
                 </label>
+
+                {hasTensorRTEngine && (
+                    <label className="flex items-center gap-3 rounded-lg border border-stone-200 px-3 py-2 text-xs font-medium text-stone-600">
+                        <input
+                            className="h-4 w-4 accent-teal-700"
+                            type="checkbox"
+                            checked={allowTensorRTFallback}
+                            onChange={(event) => setAllowTensorRTFallback(event.target.checked)}
+                        />
+                        Allow .pt fallback if TensorRT fails
+                    </label>
+                )}
             </div>
 
             <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">{computedMode}</div>

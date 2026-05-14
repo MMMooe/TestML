@@ -12,8 +12,10 @@ services:
         APT_RETRIES: ${APT_RETRIES:-3}
         APT_TIMEOUT: ${APT_TIMEOUT:-20}
         APT_FORCE_IPV4: ${APT_FORCE_IPV4:-true}
+        TENSORRT_APT_PACKAGES: ${TENSORRT_APT_PACKAGES:-python3-libnvinfer libnvinfer8 libnvinfer-plugin8 libnvinfer-bin}
     environment:
       APP_MODE: production-cuda
+      APP_REQUIRE_TENSORRT: "true"
       APP_STORAGE_DIR: /app/storage
       APP_CORS_ORIGINS: http://localhost:3000
       NVIDIA_VISIBLE_DEVICES: all

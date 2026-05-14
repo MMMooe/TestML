@@ -8,11 +8,12 @@ type UploadZoneProps = {
     onChange: (files: File[]) => void;
     multiple?: boolean;
     maxVisibleItems?: number;
-    kind: "model" | "images" | "json" | "archive";
+    kind: "model" | "plan" | "images" | "json" | "archive";
 };
 
 const icons = {
     model: FileUp,
+    plan: FileArchive,
     images: Images,
     json: FileJson,
     archive: FileArchive

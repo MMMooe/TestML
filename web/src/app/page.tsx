@@ -27,6 +27,7 @@ type DatasetInputMode = "images" | "archive";
 export default function Home() {
     const [runtime, setRuntime] = useState<RuntimeInfo | null>(null);
     const [modelFiles, setModelFiles] = useState<File[]>([]);
+    const [planFiles, setPlanFiles] = useState<File[]>([]);
     const [imageFiles, setImageFiles] = useState<File[]>([]);
     const [annotationFiles, setAnnotationFiles] = useState<File[]>([]);
     const [archiveFiles, setArchiveFiles] = useState<File[]>([]);
@@ -34,6 +35,7 @@ export default function Home() {
     const [adapter, setAdapter] = useState("classification");
     const [batchSize, setBatchSize] = useState(1);
     const [confidenceThreshold, setConfidenceThreshold] = useState(0);
+    const [allowTensorRTFallback, setAllowTensorRTFallback] = useState(false);
     const [status, setStatus] = useState<JobStatus | null>(null);
     const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
     const [results, setResults] = useState<ResultsResponse | null>(null);
@@ -82,19 +84,25 @@ export default function Home() {
         setMetrics(null);
         setResults(null);
         try {
-            const model = await uploadModel(modelFiles[0]);
+            const model = await uploadModel(modelFiles[0], planFiles[0] || null);
             const dataset = await uploadDataset({
                 images: datasetInputMode === "images" ? imageFiles : [],
                 annotation: datasetInputMode === "images" ? annotationFiles[0] || null : null,
                 archive: datasetInputMode === "archive" ? archiveFiles[0] || null : null
             });
-            if (dataset.warnings.length) setNotice(dataset.warnings.join(" "));
+            if (dataset.warnings.length) {
+                setNotice(dataset.warnings.join(" "));
+            } else if (model.plan_filename) {
+                setNotice(`TensorRT engine attached: ${model.plan_filename}. TensorRT is required for this job.`);
+            }
             const created = await createJob({
                 model_id: model.id,
                 dataset_id: dataset.id,
                 adapter,
                 batch_size: batchSize,
-                confidence_threshold: confidenceThreshold
+                confidence_threshold: confidenceThreshold,
+                use_tensorrt: Boolean(model.plan_filename),
+                allow_tensorrt_fallback: Boolean(model.plan_filename && allowTensorRTFallback)
             });
             setStatus(created);
             setNotice("Job queued");
@@ -154,6 +162,14 @@ export default function Home() {
             <div className="grid min-h-0 gap-4 p-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:p-6">
                 <aside className="space-y-4 overflow-auto scrollbar-thin">
                     <UploadZone label="Model" hint="Required .pt file" accept=".pt" files={modelFiles} onChange={(files) => setModelFiles(files.slice(0, 1))} kind="model" />
+                    <UploadZone
+                        label="TensorRT engine"
+                        hint="Optional .plan file to accelerate a compatible .pt model"
+                        accept=".plan,application/octet-stream"
+                        files={planFiles}
+                        onChange={(files) => setPlanFiles(files.slice(0, 1))}
+                        kind="plan"
+                    />
 
                     <section className="rounded-lg border border-stone-200 bg-white p-4 shadow-panel">
                         <h2 className="text-sm font-semibold text-stone-900">Dataset upload way</h2>
@@ -217,6 +233,9 @@ export default function Home() {
                         setBatchSize={setBatchSize}
                         confidenceThreshold={confidenceThreshold}
                         setConfidenceThreshold={setConfidenceThreshold}
+                        hasTensorRTEngine={planFiles.length === 1}
+                        allowTensorRTFallback={allowTensorRTFallback}
+                        setAllowTensorRTFallback={setAllowTensorRTFallback}
                         computedMode={computedMode}
                         disabled={!canStart}
                         onStart={startRun}
@@ -229,7 +248,7 @@ export default function Home() {
                     <div className="grid gap-3 md:grid-cols-3">
                         <StatusPanel icon={<Server size={17} />} label="Job" value={status ? status.state : "Idle"} />
                         <StatusPanel icon={<Database size={17} />} label="Mode" value={status ? (status.job_kind === "evaluation" ? "Evaluation + inference" : "Inference only") : "Waiting"} />
-                        <StatusPanel icon={<Cpu size={17} />} label="Device" value={runtime?.selected_device || "Unknown"} />
+                        <StatusPanel icon={<Cpu size={17} />} label="Backend" value={status?.inference_backend || (planFiles.length ? "TensorRT pending" : runtime?.selected_device || "Unknown")} />
                     </div>
 
                     <ResultsGallery
@@ -255,10 +274,14 @@ export default function Home() {
 
 function RuntimeBadge({ runtime }: { runtime: RuntimeInfo | null }) {
     const isCuda = runtime?.app_mode === "production-cuda";
+    const isTensorRT = runtime?.tensorrt_available;
     return (
         <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className={`rounded-lg px-3 py-2 font-semibold ${isCuda ? "bg-teal-50 text-teal-800" : "bg-amber-50 text-amber-900"}`}>
                 {runtime?.app_mode || "loading"}
+            </span>
+            <span className={`rounded-lg px-3 py-2 font-semibold ${isTensorRT ? "bg-cyan-50 text-cyan-800" : "bg-rose-50 text-rose-900"}`}>
+                {runtime ? (isTensorRT ? `TensorRT ${runtime.tensorrt_version}` : "TensorRT unavailable") : "TensorRT check"}
             </span>
             <span className="rounded-lg bg-stone-100 px-3 py-2 text-stone-600">{runtime?.device_name || runtime?.message || "Runtime check"}</span>
         </div>

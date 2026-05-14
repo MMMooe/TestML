@@ -17,6 +17,10 @@ class RuntimeInfo(BaseModel):
     torch_version: str | None = None
     cuda_version: str | None = None
     device_name: str | None = None
+    tensorrt_required: bool = True
+    tensorrt_available: bool = False
+    tensorrt_version: str | None = None
+    tensorrt_message: str = "TensorRT runtime was not checked"
     message: str
 
 
@@ -24,6 +28,8 @@ class ModelRecord(BaseModel):
     id: str
     filename: str
     path: str
+    plan_filename: str | None = None
+    plan_path: str | None = None
     size_bytes: int
     created_at: datetime
 
@@ -63,6 +69,8 @@ class JobCreateRequest(BaseModel):
     adapter: str = "classification"
     batch_size: int = Field(default=1, ge=1, le=128)
     confidence_threshold: float = Field(default=0.0, ge=0.0, le=1.0)
+    use_tensorrt: bool = True
+    allow_tensorrt_fallback: bool = False
 
 
 class JobStatus(BaseModel):
@@ -74,6 +82,7 @@ class JobStatus(BaseModel):
     adapter: str
     job_kind: JobKind
     state: JobState
+    inference_backend: str | None = None
     progress: float = Field(default=0.0, ge=0.0, le=1.0)
     processed: int = 0
     total: int = 0

@@ -7,12 +7,18 @@ export type RuntimeInfo = {
     torch_version?: string | null;
     cuda_version?: string | null;
     device_name?: string | null;
+    tensorrt_required: boolean;
+    tensorrt_available: boolean;
+    tensorrt_version?: string | null;
+    tensorrt_message: string;
     message: string;
 };
 
 export type ModelRecord = {
     id: string;
     filename: string;
+    plan_filename?: string | null;
+    plan_path?: string | null;
     size_bytes: number;
     created_at: string;
 };
@@ -32,6 +38,7 @@ export type JobStatus = {
     adapter: string;
     job_kind: "inference" | "evaluation";
     state: "queued" | "running" | "completed" | "failed";
+    inference_backend?: string | null;
     progress: number;
     processed: number;
     total: number;
@@ -75,9 +82,10 @@ export async function getRuntime(): Promise<RuntimeInfo> {
     return request<RuntimeInfo>("/runtime");
 }
 
-export async function uploadModel(file: File): Promise<ModelRecord> {
+export async function uploadModel(file: File, plan?: File | null): Promise<ModelRecord> {
     const form = new FormData();
     form.append("file", file);
+    if (plan) form.append("plan", plan);
     const response = await request<{ model: ModelRecord }>("/models", { method: "POST", body: form });
     return response.model;
 }
@@ -101,6 +109,8 @@ export async function createJob(args: {
     adapter: string;
     batch_size: number;
     confidence_threshold: number;
+    use_tensorrt: boolean;
+    allow_tensorrt_fallback: boolean;
 }): Promise<JobStatus> {
     return request<JobStatus>("/jobs", {
         method: "POST",

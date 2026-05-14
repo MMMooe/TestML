@@ -18,12 +18,21 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
         manifest = load_manifest(request.dataset_id, storage)
         status.state = "running"
         status.started_at = datetime.now(timezone.utc)
-        status.message = "Running CUDA inference"
+        status.message = "Preparing inference backend"
         status.total = manifest.image_count
         write_json(status_path, status)
 
         model_metadata = read_json(storage.model_dir(request.model_id) / "metadata.json")
-        adapter = _select_adapter(request.adapter, model_metadata["path"])
+        adapter = _select_adapter(
+            request.adapter,
+            model_metadata["path"],
+            model_metadata.get("plan_path"),
+            use_tensorrt=request.use_tensorrt,
+            allow_tensorrt_fallback=request.allow_tensorrt_fallback,
+        )
+        status.inference_backend = getattr(adapter, "backend", None)
+        status.message = f"Running {status.inference_backend or 'CUDA'} inference"
+        write_json(status_path, status)
 
         results: list[ResultGalleryItem] = []
         correct = 0
@@ -93,9 +102,21 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
         write_json(status_path, status)
 
 
-def _select_adapter(adapter_name: str, model_path: str):
+def _select_adapter(
+    adapter_name: str,
+    model_path: str,
+    plan_path: str | None = None,
+    *,
+    use_tensorrt: bool = True,
+    allow_tensorrt_fallback: bool = False,
+):
     if adapter_name in {"classification", "custom/no-metrics", "detection"}:
-        return ClassificationAdapter(model_path)
+        return ClassificationAdapter(
+            model_path,
+            plan_path=plan_path,
+            use_tensorrt=use_tensorrt,
+            allow_tensorrt_fallback=allow_tensorrt_fallback,
+        )
     raise ValueError(f"Unsupported adapter: {adapter_name}")
 
 

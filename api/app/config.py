@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     )
     cors_origins: str = Field(default="http://localhost:3000", validation_alias="APP_CORS_ORIGINS")
     max_upload_mb: int = Field(default=4096, validation_alias="APP_MAX_UPLOAD_MB")
+    require_tensorrt: bool = Field(default=True, validation_alias="APP_REQUIRE_TENSORRT")
 
     model_config = SettingsConfigDict(extra="ignore")
 

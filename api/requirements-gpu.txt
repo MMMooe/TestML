@@ -1,3 +1,4 @@
 -r requirements.txt
 --extra-index-url https://download.pytorch.org/whl/cu121
 torch==2.3.1+cu121
+cuda-python==12.1.0

@@ -7,6 +7,7 @@ ARG NVIDIA_APT_MIRROR=https://developer.download.nvidia.com/compute/cuda/repos/u
 ARG APT_RETRIES=3
 ARG APT_TIMEOUT=20
 ARG APT_FORCE_IPV4=true
+ARG TENSORRT_APT_PACKAGES="python3-libnvinfer libnvinfer8 libnvinfer-plugin8 libnvinfer-bin"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -25,12 +26,21 @@ RUN set -eux; \
             fi; \
         done; \
         apt-get update -o Acquire::Retries="${APT_RETRIES}" -o Acquire::http::Timeout="${APT_TIMEOUT}" -o Acquire::https::Timeout="${APT_TIMEOUT}" ${apt_ipv4_option} \
-    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 curl \
+    && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 curl ${TENSORRT_APT_PACKAGES} \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements-gpu.txt ./
 RUN python3 -m pip install --upgrade pip \
     && python3 -m pip install -r requirements-gpu.txt
+
+RUN python3 - <<'PY'
+import tensorrt as trt
+from cuda import cudart
+
+if not hasattr(cudart, "cudaMalloc"):
+    raise RuntimeError("CUDA Python runtime bindings are incomplete")
+print(f"TensorRT runtime available: {trt.__version__}")
+PY
 
 COPY app ./app
 
