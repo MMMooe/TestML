@@ -154,29 +154,3 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
-
-
-
-
-
-Step 22/23 : CMD ["node", "server.js"]
- ---> Running in 726c90fe7211
- ---> Removed intermediate container 726c90fe7211
- ---> 29072d728405
-Step 23/23 : LABEL com.docker.compose.image.builder=classic
- ---> Running in ea6a6dcf336a
- ---> Removed intermediate container ea6a6dcf336a
- ---> de537eba29c4
-Successfully built de537eba29c4
-Successfully tagged testml-web:latest
-[install] Install complete
-Current context is now "default"
-[start] Checking NVIDIA GPU visibility
-[start] Pre-pulling GPU smoke-test image: nvidia/cuda:12.1.1-base-ubuntu22.04
-Error response from daemon: Get "https://registry-1.docker.io/v2/": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
-[start] Pull failed for nvidia/cuda:12.1.1-base-ubuntu22.04 (attempt 1/10). Retrying in 20s
-12.1.1-base-ubuntu22.04: Pulling from nvidia/cuda
-Digest: sha256:457a4076c56025f51217bff647ca631c7880ad3dbf546b03728ba98297ebbc22
-Status: Image is up to date for nvidia/cuda:12.1.1-base-ubuntu22.04
-docker.io/nvidia/cuda:12.1.1-base-ubuntu22.04
-[start] Running Docker GPU smoke test
