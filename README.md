@@ -128,5 +128,24 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-chmod +x scripts/*.sh
-PULL_RETRY_COUNT=20 PULL_RETRY_DELAY=30 ./scripts/start_ubuntu_production.sh
+sudo mkdir -p /etc/docker
+
+sudo tee /etc/docker/daemon.json >/dev/null <<'EOF'
+{
+  "registry-mirrors": [
+    "https://YOUR_MIRROR_URL"
+  ],
+  "dns": ["223.5.5.5", "119.29.29.29", "8.8.8.8"]
+}
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+
+docker info | grep -A 10 "Registry Mirrors"
+
+
+docker pull node:20-alpine
+docker pull nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+docker pull nvidia/cuda:12.1.1-base-ubuntu22.04
