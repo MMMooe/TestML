@@ -1,0 +1,14 @@
+.git
+.github
+.DS_Store
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.venv
+**/node_modules
+**/.next
+storage/uploads
+storage/jobs
+storage/results
+README.md

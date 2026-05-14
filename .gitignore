@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+out/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+storage/uploads/**
+storage/jobs/**
+storage/results/**
+!storage/uploads/.gitkeep
+!storage/uploads/models/.gitkeep
+!storage/uploads/datasets/.gitkeep
+!storage/jobs/.gitkeep
+!storage/results/.gitkeep
+
+# Local env
+.env
+.env.*
+!.env.example
+
+# OS/editor
+.DS_Store
+.vscode/

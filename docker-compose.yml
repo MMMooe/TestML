@@ -1,0 +1,41 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.gpu
+    environment:
+      APP_MODE: production-cuda
+      APP_STORAGE_DIR: /app/storage
+      APP_CORS_ORIGINS: http://localhost:3000
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./storage:/app/storage
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy

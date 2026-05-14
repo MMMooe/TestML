@@ -1,0 +1,22 @@
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile.dev
+    environment:
+      APP_MODE: dev-mock
+      APP_STORAGE_DIR: /app/storage
+      APP_CORS_ORIGINS: http://localhost:3000
+    volumes:
+      - ./storage:/app/storage
+      - ./api/app:/app/app
+    deploy: null
+
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8000
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
