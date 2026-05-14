@@ -302,7 +302,7 @@ My read: because `/dev/nvidia*` and `libcuda` are present, I’d first try the `
 
 
 
-timeout 60s docker run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
+timeout 60s docker run -i --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
 import torch
 
 print("step 1: imported torch", flush=True)
@@ -325,7 +325,7 @@ print("cuda tensor ok:", float(x.sum()), flush=True)
 PY
 
 
-timeout 60s docker run --rm --gpus all --privileged pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
+timeout 60s docker run -i --rm --gpus all --privileged pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
 import torch
 print(torch.__version__, torch.version.cuda, flush=True)
 print(torch.cuda.device_count(), flush=True)
@@ -334,3 +334,71 @@ x = torch.randn(1, device="cuda")
 torch.cuda.synchronize()
 print(float(x), flush=True)
 PY
+
+
+
+
+
+
+
+
+
+
+
+
+timeout 60s docker run -i --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
+import torch
+
+print("step 1: imported torch", flush=True)
+print("torch:", torch.__version__, flush=True)
+print("torch cuda:", torch.version.cuda, flush=True)
+
+print("step 2: checking device count", flush=True)
+print("device count:", torch.cuda.device_count(), flush=True)
+
+print("step 3: checking cuda available", flush=True)
+print("cuda available:", torch.cuda.is_available(), flush=True)
+
+print("step 4: creating cuda tensor", flush=True)
+PYint("cuda tensor ok:", float(x.sum()), flush=True)
+step 1: imported torch
+torch: 2.5.1+cu124
+torch cuda: 12.4
+step 2: checking device count
+device count: 1
+step 3: checking cuda available
+cuda available: False
+step 4: creating cuda tensor
+/opt/conda/lib/python3.11/site-packages/torch/cuda/__init__.py:129: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+  return torch._C._cuda_getDeviceCount() > 0
+Traceback (most recent call last):
+  File "<stdin>", line 14, in <module>
+  File "/opt/conda/lib/python3.11/site-packages/torch/cuda/__init__.py", line 319, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero.
+
+
+
+
+
+
+
+ timeout 60s docker run -i --rm --gpus all --privileged pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
+import torch
+print(torch.__version__, torch.version.cuda, flush=True)
+print(torch.cuda.device_count(), flush=True)
+print(torch.cuda.is_available(), flush=True)
+x = torch.randn(1, device="cuda")
+torch.cuda.synchronize()
+print(float(x), flush=True)
+PY
+2.5.1+cu124 12.4
+1
+False
+/opt/conda/lib/python3.11/site-packages/torch/cuda/__init__.py:129: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+  return torch._C._cuda_getDeviceCount() > 0
+Traceback (most recent call last):
+  File "<stdin>", line 5, in <module>
+  File "/opt/conda/lib/python3.11/site-packages/torch/cuda/__init__.py", line 319, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero.
