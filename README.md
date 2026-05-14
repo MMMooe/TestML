@@ -170,131 +170,28 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-
-The new error is precise: Docker is running the test container, but no NVIDIA device nodes are being injected into it. I’ll verify the current Compose and script settings so the next advice matches the repo state.
-
-Read [](file:///Users/miles.liu/Documents/projects/TestLM/docker-compose.yml)
-
-Read [](file:///Users/miles.liu/Documents/projects/TestLM/scripts/start_ubuntu_production.sh)
-
-Read [](file:///Users/miles.liu/Documents/projects/TestLM/README.md#110-110), lines 110 to 150
-
-The problem is now very narrow:
-
-**Host NVIDIA works, but Docker GPU injection does not.**
-
-This command failing with:
-
-```text
-cannot access '/dev/nvidia*': No such file or directory
-```
-
-means `docker run --gpus all ...` starts the container, but NVIDIA device files are not mounted into it. So the app cannot work yet, because the backend requires CUDA.
-
-Even if these were already run:
-
-```bash
-sudo apt-get install -y nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-```
-
-Docker is still not actually applying the NVIDIA runtime hook.
-
-Check these next.
-
-**1. Do not skip the smoke test**
-
-Run:
-
-```bash
-SKIP_BUILD=1 SKIP_CUDA_PREPULL=1 SKIP_NODE_PREPULL=1 ./scripts/start_ubuntu_production.sh
-```
-
-Do not set `SKIP_GPU_SMOKE_TEST=1`. The smoke test is correctly catching the real blocker.
-
-**2. Check host device files**
-
-On Ubuntu host:
-
-```bash
-ls -l /dev/nvidia*
-```
-
-Expected: files like:
-
-```text
-/dev/nvidia0
-/dev/nvidiactl
-/dev/nvidia-uvm
-```
-
-If they are missing, try:
-
-```bash
-sudo modprobe nvidia
-sudo modprobe nvidia_uvm
-ls -l /dev/nvidia*
-```
-
-**3. Check whether Docker is Snap-installed**
-
-This is a common cause. `nvidia-ctk` may configure `/etc/docker/daemon.json`, but Snap Docker may ignore it.
-
-Run:
-
-```bash
-which docker
-snap list docker 2>/dev/null || true
-systemctl status docker --no-pager
-docker info | grep -Ei 'Runtimes|Default Runtime|Rootless|Cgroup'
-cat /etc/docker/daemon.json
-```
-
-If `which docker` shows something under `/snap/bin/docker` or `snap list docker` shows Docker, I would remove Snap Docker and install official Docker Engine from apt. Snap Docker often causes NVIDIA runtime pain.
-
-
-**4. Test NVIDIA runtime directly**
-
-Run:
-
-```bash
-docker run --rm --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
-'echo "devices:"; ls -l /dev/nvidia*; echo "env:"; env | grep NVIDIA'
-```
-
-Also:
-
-```bash
-docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
-```
-
-The second command should show GPU info inside the container. Until it does, the app cannot start in `production-cuda`.
-
-**5. Check NVIDIA toolkit itself**
-
-```bash
-nvidia-container-cli -k -d /dev/tty info
-```
-
-If this fails, the toolkit install/config is broken even though Docker lists an NVIDIA runtime.
-
-Short answer: all app images are built, but production startup is blocked by Docker/NVIDIA runtime configuration. The app is behaving correctly by refusing to run without CUDA. The next thing to fix is making this command work:
-
-```bash
-docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
-```
-
-
+sudo cat /etc/nvidia-container-runtime/config.toml | grep -E 'mode|no-cgroups|debug|accept-nvidia-visible-devices'
 
 
 sudo nvidia-ctk config --set nvidia-container-cli.no-cgroups=false --in-place
 sudo nvidia-ctk config --set nvidia-container-runtime.mode=legacy --in-place
+sudo nvidia-ctk config --set nvidia-container-runtime.runtimes='["docker-runc","runc"]' --in-place
 sudo systemctl restart docker
 
 
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
-'echo "devices:"; ls -l /dev/nvidia*; echo "env:"; env | grep NVIDIA'
+docker run --rm --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
+'echo devices; ls -l /dev/nvidia*; echo libs; ldconfig -p | grep -E "libcuda|libnvidia-ml" || true'
 
 
-SKIP_BUILD=1 SKIP_CUDA_PREPULL=1 SKIP_NODE_PREPULL=1 ./scripts/start_ubuntu_production.sh
+sudo journalctl -u docker --no-pager -n 120
+
+
+docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 -c \
+'echo devices; ls -l /dev/nvidia*; python3 - <<PY
+import os
+print([p for p in os.listdir("/dev") if p.startswith("nvidia")])
+PY'
+
+
+
+docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c 'ls -l /dev/nvidia*'
