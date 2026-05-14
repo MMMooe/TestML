@@ -198,6 +198,12 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-nvidia-smi -q | grep -i "Compute Mode"
+nvidia-smi
 
-sudo nvidia-smi -c 0
+docker compose exec api python3 - <<'PY'
+import torch
+print("cuda available:", torch.cuda.is_available())
+print("device:", torch.cuda.get_device_name(0))
+x = torch.randn(1, 3, 224, 224, device="cuda")
+print("cuda tensor ok:", float(x.sum()))
+PY
