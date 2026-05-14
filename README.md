@@ -121,3 +121,22 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
+
+
+
+
+
+
+ubuntu22@ubuntu22-O-E-M:~/Documents/TestML/TestML$ /home/ubuntu22/Documents/TestML/TestML/scripts/start_ubuntu_production.sh
+[start] Checking NVIDIA GPU visibility
+[start] Running Docker GPU smoke test
+Unable to find image 'nvidia/cuda:12.1.1-base-ubuntu22.04' locally
+12.1.1-base-ubuntu22.04: Pulling from nvidia/cuda
+aece8493d397: Pull complete 
+dd4939a04761: Pull complete 
+b0d7cc89b769: Pull complete 
+1532d9024b9c: Pull complete 
+04fc8a31fa53: Pull complete 
+Digest: sha256:457a4076c56025f51217bff647ca631c7880ad3dbf546b03728ba98297ebbc22
+Status: Downloaded newer image for nvidia/cuda:12.1.1-base-ubuntu22.04
+docker: Error response from daemon: failed to create task for container: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "nvidia-smi": executable file not found in $PATH: unknown.
