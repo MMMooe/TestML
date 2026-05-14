@@ -295,3 +295,41 @@ PYint("cuda tensor ok:", float(x.sum()))cuda")le())
 Use the clean block above. The typo did not cause the CUDA init failure, but it makes debugging output confusing.
 
 My read: because `/dev/nvidia*` and `libcuda` are present, I’d first try the `no-cgroups=false` + `legacy` reset. If PyTorch still fails, test `pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime`; a successful result there would point strongly to upgrading this app’s CUDA/PyTorch base.
+
+
+
+
+
+
+
+
+
+
+
+
+
+docker compose run --rm --no-deps --entrypoint python3 api - <<'PY'
+import torch
+print("torch:", torch.__version__)
+print("torch cuda:", torch.version.cuda)
+print("device count:", torch.cuda.device_count())
+print("cuda available:", torch.cuda.is_available())
+x = torch.randn(1, 3, 224, 224, device="cuda")
+torch.cuda.synchronize()
+print("cuda tensor ok:", float(x.sum()))
+PY
+[+]  1/1te 1/1
+ ✔ Network testml_default Created                                                       0.2s 
+Container testml-api-run-02fb64502b28 Creating 
+Container testml-api-run-02fb64502b28 Created 
+torch: 2.3.1+cu121
+torch cuda: 12.1
+device count: 1
+cuda available: False
+/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py:118: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+  return torch._C._cuda_getDeviceCount() > 0
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py", line 293, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero.
