@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CUDA_BASE_IMAGE="${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}"
+PULL_RETRY_COUNT="${PULL_RETRY_COUNT:-5}"
+PULL_RETRY_DELAY="${PULL_RETRY_DELAY:-15}"
 
 log() {
   echo "[start] $*"
@@ -24,6 +27,25 @@ detect_compose() {
   fail "Docker Compose not found. Install docker compose v2 or docker-compose."
 }
 
+pull_with_retry() {
+  local image="$1"
+  local attempts="$2"
+  local delay="$3"
+  local try=1
+
+  while true; do
+    if docker pull "$image"; then
+      return 0
+    fi
+    if (( try >= attempts )); then
+      fail "Failed to pull $image after $attempts attempts"
+    fi
+    log "Pull failed for $image (attempt $try/$attempts). Retrying in ${delay}s"
+    sleep "$delay"
+    ((try+=1))
+  done
+}
+
 main() {
   cd "$ROOT_DIR"
 
@@ -42,13 +64,20 @@ main() {
     log "Skipping Docker GPU smoke test (SKIP_GPU_SMOKE_TEST=1)"
   fi
 
+  if [[ "${SKIP_CUDA_PREPULL:-0}" != "1" ]]; then
+    log "Pre-pulling CUDA base image: $CUDA_BASE_IMAGE"
+    pull_with_retry "$CUDA_BASE_IMAGE" "$PULL_RETRY_COUNT" "$PULL_RETRY_DELAY"
+  else
+    log "Skipping CUDA base image pre-pull (SKIP_CUDA_PREPULL=1)"
+  fi
+
   unset DOCKER_HOST DOCKER_CONTEXT
   if docker context inspect default >/dev/null 2>&1; then
     docker context use default >/dev/null
   fi
 
   log "Starting production stack"
-  "${COMPOSE_CMD[@]}" up --build "$@"
+  CUDA_BASE_IMAGE="$CUDA_BASE_IMAGE" "${COMPOSE_CMD[@]}" up --build "$@"
 }
 
 main "$@"

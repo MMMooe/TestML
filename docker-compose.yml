@@ -3,6 +3,8 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile.gpu
+      args:
+        CUDA_BASE_IMAGE: ${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}
     environment:
       APP_MODE: production-cuda
       APP_STORAGE_DIR: /app/storage

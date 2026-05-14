@@ -2,6 +2,9 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CUDA_BASE_IMAGE="${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}"
+PULL_RETRY_COUNT="${PULL_RETRY_COUNT:-5}"
+PULL_RETRY_DELAY="${PULL_RETRY_DELAY:-15}"
 
 log() {
   echo "[install] $*"
@@ -29,6 +32,25 @@ detect_compose() {
   fail "Docker Compose not found. Install docker compose v2 or docker-compose."
 }
 
+pull_with_retry() {
+  local image="$1"
+  local attempts="$2"
+  local delay="$3"
+  local try=1
+
+  while true; do
+    if docker pull "$image"; then
+      return 0
+    fi
+    if (( try >= attempts )); then
+      fail "Failed to pull $image after $attempts attempts"
+    fi
+    log "Pull failed for $image (attempt $try/$attempts). Retrying in ${delay}s"
+    sleep "$delay"
+    ((try+=1))
+  done
+}
+
 main() {
   cd "$ROOT_DIR"
 
@@ -50,8 +72,11 @@ main() {
   api/.venv/bin/python -m pip install --upgrade pip
   api/.venv/bin/pip install -r api/requirements-dev.txt
 
+  log "Pre-pulling CUDA base image: $CUDA_BASE_IMAGE"
+  pull_with_retry "$CUDA_BASE_IMAGE" "$PULL_RETRY_COUNT" "$PULL_RETRY_DELAY"
+
   log "Building Docker images"
-  "${COMPOSE_CMD[@]}" build
+  CUDA_BASE_IMAGE="$CUDA_BASE_IMAGE" "${COMPOSE_CMD[@]}" build
 
   log "Install complete"
 }

@@ -13,6 +13,12 @@ chmod +x scripts/*.sh
 ./scripts/setup_and_start_ubuntu.sh
 ```
 
+If your server has slow or unstable Docker Hub connectivity, you can increase pull retries:
+
+```bash
+PULL_RETRY_COUNT=8 PULL_RETRY_DELAY=20 ./scripts/setup_and_start_ubuntu.sh
+```
+
 What this does:
 
 - Installs web dependencies in `web/`.
@@ -39,6 +45,12 @@ If the machine uses the legacy Compose binary, use `docker-compose down`.
 chmod +x scripts/*.sh
 ./scripts/install_ubuntu.sh
 ./scripts/start_ubuntu_production.sh
+```
+
+You can override the CUDA base image if your registry/network prefers a different tag:
+
+```bash
+CUDA_BASE_IMAGE=nvidia/cuda:12.1.1-runtime-ubuntu22.04 ./scripts/start_ubuntu_production.sh
 ```
 
 ## Production: Ubuntu NVIDIA GPU
