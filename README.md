@@ -4,6 +4,43 @@ Dockerized app for running PyTorch `.pt` inference and optional evaluation on an
 
 Users upload a model, test images, and optionally a JSON annotation file. Images-only runs inference. Images plus JSON runs inference and evaluation. Results are displayed in a gallery with per-image details and exports.
 
+## Quick Start After Clone (Ubuntu)
+
+From the repository root:
+
+```bash
+chmod +x scripts/*.sh
+./scripts/setup_and_start_ubuntu.sh
+```
+
+What this does:
+
+- Installs web dependencies in `web/`.
+- Creates `api/.venv` and installs API dependencies.
+- Builds Docker images.
+- Verifies GPU availability and starts the production stack.
+
+Open:
+
+- UI: http://localhost:3000
+- API docs: http://localhost:8000/docs
+
+To stop:
+
+```bash
+docker compose down
+```
+
+If the machine uses the legacy Compose binary, use `docker-compose down`.
+
+## Install and Start Separately (Ubuntu)
+
+```bash
+chmod +x scripts/*.sh
+./scripts/install_ubuntu.sh
+./scripts/start_ubuntu_production.sh
+```
+
 ## Production: Ubuntu NVIDIA GPU
 
 Prerequisites on the Ubuntu PC:
@@ -72,28 +109,3 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
-
-
-
-
-Verify host prerequisites
-nvidia-smi
-docker --version
-docker compose version
-
-Verify Docker can access GPU
-docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
-
-From project root, ensure local Docker context
-unset DOCKER_HOST DOCKER_CONTEXT
-docker context use default
-
-Start the app in production mode
-docker compose up --build
-
-Open
-UI: http://localhost:3000
-API docs: http://localhost:8000/docs
-
-Stop when done
-docker compose down
