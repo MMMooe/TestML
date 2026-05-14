@@ -198,7 +198,32 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-nvidia-smi
+ nvidia-smi
+Thu May 14 15:29:12 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4080        Off |   00000000:01:00.0  On |                  N/A |
+| 38%   34C    P8              5W /  320W |     516MiB /  16376MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A          191668      G   /usr/lib/xorg/Xorg                      201MiB |
+|    0   N/A  N/A          192122      G   /usr/bin/gnome-shell                     28MiB |
+|    0   N/A  N/A          323963      G   .../8054/usr/lib/firefox/firefox        110MiB |
+|    0   N/A  N/A          620996      G   /proc/self/exe                           57MiB |
+|    0   N/A  N/A          621146      G   ...rack-uuid=3190709050030717226         44MiB |
++-----------------------------------------------------------------------------------------+
+
 
 docker compose exec api python3 - <<'PY'
 import torch
