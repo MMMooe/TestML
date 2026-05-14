@@ -148,12 +148,26 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
 
 
-chmod +x scripts/*.sh
-PULL_RETRY_COUNT=20 PULL_RETRY_DELAY=30 ./scripts/setup_and_start_ubuntu.sh
-
-
-UBUNTU_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/ubuntu \
-NVIDIA_APT_MIRROR=https://mirrors.ustc.edu.cn/nvidia-cuda/ubuntu2204/x86_64 \
-PULL_RETRY_COUNT=20 \
-PULL_RETRY_DELAY=30 \
-./scripts/setup_and_start_ubuntu.sh
+Step 1/13 : ARG CUDA_BASE_IMAGE=nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+Step 2/13 : FROM ${CUDA_BASE_IMAGE}
+ ---> 02f0c5f1a54b
+Step 3/13 : ARG UBUNTU_APT_MIRROR=https://mirrors.aliyun.com/ubuntu
+ ---> Using cache
+ ---> 83d5fb29aee9
+Step 4/13 : ARG NVIDIA_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64
+ ---> Using cache
+ ---> 11ab80c74d2b
+Step 5/13 : ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1     PIP_NO_CACHE_DIR=1
+ ---> Using cache
+ ---> 19d78468dec4
+Step 6/13 : WORKDIR /app
+ ---> Using cache
+ ---> c11130a9d0fd
+Step 7/13 : RUN set -eux;         for apt_source in /etc/apt/sources.list /etc/apt/sources.list.d/*.list /etc/apt/sources.list.d/*.sources; do             if [ -f "$apt_source" ]; then                 sed -i "s|http://archive.ubuntu.com/ubuntu|${UBUNTU_APT_MIRROR}|g; s|https://archive.ubuntu.com/ubuntu|${UBUNTU_APT_MIRROR}|g; s|http://security.ubuntu.com/ubuntu|${UBUNTU_APT_MIRROR}|g; s|https://security.ubuntu.com/ubuntu|${UBUNTU_APT_MIRROR}|g; s|https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64|${NVIDIA_APT_MIRROR}|g; s|http://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64|${NVIDIA_APT_MIRROR}|g" "$apt_source";             fi;         done;     apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30     && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 curl     && rm -rf /var/lib/apt/lists/*
+ ---> Running in 0fccd414462b
++ [ -f /etc/apt/sources.list ]
++ sed -i s|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|https://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|https://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64|https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64|g; s|http://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64|https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64|g /etc/apt/sources.list
++ [ -f /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list ]
++ sed -i s|http://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|https://archive.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|http://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|https://security.ubuntu.com/ubuntu|https://mirrors.aliyun.com/ubuntu|g; s|https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64|https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64|g; s|http://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64|https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64|g /etc/apt/sources.list.d/cuda-ubuntu2204-x86_64.list
++ [ -f /etc/apt/sources.list.d/*.sources ]
++ apt-get update -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30
