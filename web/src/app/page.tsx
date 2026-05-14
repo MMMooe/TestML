@@ -5,6 +5,7 @@ import { Cpu, Database, Server, UploadCloud } from "lucide-react";
 
 import { ResultDetail } from "@/components/result-detail";
 import { ResultsGallery } from "@/components/results-gallery";
+import { RunLog, RunLogEntry, RunLogLevel } from "@/components/run-log";
 import { RunControls } from "@/components/run-controls";
 import { UploadZone } from "@/components/upload-zone";
 import {
@@ -45,6 +46,7 @@ export default function Home() {
     const [selected, setSelected] = useState<ResultItem | null>(null);
     const [busy, setBusy] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
+    const [runLogs, setRunLogs] = useState<RunLogEntry[]>([]);
 
     useEffect(() => {
         getRuntime().then(setRuntime).catch((error) => setNotice(error.message));
@@ -76,6 +78,25 @@ export default function Home() {
         }
     }
 
+    function appendRunLog(level: RunLogLevel, title: string, detail?: string) {
+        const entry: RunLogEntry = {
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            level,
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
+            title,
+            detail
+        };
+        setRunLogs((entries) => [...entries.slice(-59), entry]);
+    }
+
+    function describeDatasetInput() {
+        if (datasetInputMode === "archive") {
+            return `Archive: ${archiveFiles[0]?.name || "not selected"}`;
+        }
+        const annotationDetail = annotationFiles[0] ? `annotation ${annotationFiles[0].name}` : "no annotation JSON";
+        return `${imageFiles.length} image${imageFiles.length === 1 ? "" : "s"}, ${annotationDetail}`;
+    }
+
     async function startRun() {
         if (!canStart) return;
         setBusy(true);
@@ -83,8 +104,22 @@ export default function Home() {
         setStatus(null);
         setMetrics(null);
         setResults(null);
+        setRunLogs([]);
+        appendRunLog(
+            "info",
+            "Run started",
+            `Model ${modelFiles[0].name}; ${planFiles[0] ? `TensorRT engine ${planFiles[0].name}` : "PyTorch CUDA backend"}; ${describeDatasetInput()}.`
+        );
         try {
+            appendRunLog("info", "Uploading model", planFiles[0] ? "Uploading .pt model and TensorRT .plan engine" : "Uploading .pt model");
             const model = await uploadModel(modelFiles[0], planFiles[0] || null);
+            appendRunLog(
+                "success",
+                "Model uploaded",
+                model.plan_filename ? `Model ${model.filename}; TensorRT engine ${model.plan_filename}.` : `Model ${model.filename}.`
+            );
+
+            appendRunLog("info", "Uploading dataset", describeDatasetInput());
             const dataset = await uploadDataset({
                 images: datasetInputMode === "images" ? imageFiles : [],
                 annotation: datasetInputMode === "images" ? annotationFiles[0] || null : null,
@@ -92,9 +127,21 @@ export default function Home() {
             });
             if (dataset.warnings.length) {
                 setNotice(dataset.warnings.join(" "));
+                appendRunLog("warning", "Dataset uploaded with warnings", dataset.warnings.join(" "));
             } else if (model.plan_filename) {
                 setNotice(`TensorRT engine attached: ${model.plan_filename}. TensorRT is required for this job.`);
             }
+            appendRunLog(
+                "success",
+                "Dataset ready",
+                `${dataset.image_count} image${dataset.image_count === 1 ? "" : "s"}; ${dataset.job_kind === "evaluation" ? "evaluation + inference" : "inference only"}.`
+            );
+
+            appendRunLog(
+                "info",
+                "Queueing job",
+                `Adapter ${adapter}; batch size ${batchSize}; ${model.plan_filename ? (allowTensorRTFallback ? "TensorRT with explicit .pt fallback" : "TensorRT required") : "PyTorch CUDA"}.`
+            );
             const created = await createJob({
                 model_id: model.id,
                 dataset_id: dataset.id,
@@ -106,9 +153,12 @@ export default function Home() {
             });
             setStatus(created);
             setNotice("Job queued");
+            appendRunLog("success", "Job queued", `Job ${created.id}; ${created.total} image${created.total === 1 ? "" : "s"}.`);
             await pollJob(created.id);
         } catch (error) {
-            setNotice(error instanceof Error ? error.message : "Run failed");
+            const message = error instanceof Error ? error.message : "Run failed";
+            setNotice(message);
+            appendRunLog("error", "Run failed", message);
         } finally {
             setBusy(false);
         }
@@ -117,17 +167,44 @@ export default function Home() {
     async function pollJob(jobId: string) {
         let latest = await getJob(jobId);
         setStatus(latest);
+        appendRunLog("info", "Job status", latest.message || latest.state);
+
+        let loggedBackend = latest.inference_backend || "";
+        if (loggedBackend) {
+            appendRunLog("success", "Backend selected", loggedBackend);
+        }
+
+        const loggedProgressMarks = new Set<number>();
         while (latest.state === "queued" || latest.state === "running") {
             await new Promise((resolve) => setTimeout(resolve, 1000));
             latest = await getJob(jobId);
             setStatus(latest);
+            if (latest.inference_backend && latest.inference_backend !== loggedBackend) {
+                loggedBackend = latest.inference_backend;
+                appendRunLog("success", "Backend selected", latest.inference_backend);
+            }
+
+            const progressMark = Math.floor(latest.progress * 4) * 25;
+            if (progressMark > 0 && progressMark < 100 && !loggedProgressMarks.has(progressMark)) {
+                loggedProgressMarks.add(progressMark);
+                appendRunLog("info", `${progressMark}% complete`, `${latest.processed}/${latest.total} images processed.`);
+            }
         }
-        await refreshResults(jobId);
-        setNotice(latest.state === "completed" ? "Job completed" : latest.error || "Job failed");
+        const refreshed = await refreshResults(jobId);
+        if (latest.state === "completed") {
+            const resultCount = refreshed?.resultsResponse.total ?? 0;
+            const metricDetail = refreshed?.metricsResponse.available ? ` Metrics available.` : " Metrics not available.";
+            appendRunLog("success", "Job completed", `${latest.processed}/${latest.total} images processed. ${resultCount} gallery item${resultCount === 1 ? "" : "s"}.${metricDetail}`);
+            setNotice("Job completed");
+        } else {
+            const message = latest.error || latest.message || "Job failed";
+            appendRunLog("error", "Job failed", message);
+            setNotice(message);
+        }
     }
 
     async function refreshResults(jobId = status?.id) {
-        if (!jobId) return;
+        if (!jobId) return undefined;
         const [metricsResponse, resultsResponse] = await Promise.all([
             getMetrics(jobId),
             getResults(jobId, {
@@ -140,6 +217,7 @@ export default function Home() {
         ]);
         setMetrics(metricsResponse);
         setResults(resultsResponse);
+        return { metricsResponse, resultsResponse };
     }
 
     return (
@@ -242,6 +320,7 @@ export default function Home() {
                     />
 
                     {notice && <div className="rounded-lg border border-stone-200 bg-white p-3 text-sm text-stone-700 shadow-panel">{notice}</div>}
+                    <RunLog entries={runLogs} />
                 </aside>
 
                 <section className="grid min-h-0 gap-4 lg:grid-rows-[auto_minmax(0,1fr)]">
