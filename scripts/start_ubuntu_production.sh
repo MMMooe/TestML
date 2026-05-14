@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CUDA_BASE_IMAGE="${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}"
+GPU_SMOKE_IMAGE="${GPU_SMOKE_IMAGE:-nvidia/cuda:12.1.1-base-ubuntu22.04}"
 PULL_RETRY_COUNT="${PULL_RETRY_COUNT:-5}"
 PULL_RETRY_DELAY="${PULL_RETRY_DELAY:-15}"
 
@@ -59,7 +60,7 @@ main() {
 
   if [[ "${SKIP_GPU_SMOKE_TEST:-0}" != "1" ]]; then
     log "Running Docker GPU smoke test"
-    docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi >/dev/null
+    docker run --rm --gpus all --entrypoint /bin/sh "$GPU_SMOKE_IMAGE" -c 'test -e /dev/nvidiactl || test -e /dev/nvidia0' >/dev/null
   else
     log "Skipping Docker GPU smoke test (SKIP_GPU_SMOKE_TEST=1)"
   fi

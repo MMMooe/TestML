@@ -4,10 +4,9 @@ This workspace contains a Dockerized model evaluation gallery app.
 
 - Production is an Ubuntu PC with an NVIDIA GPU.
 - Real inference and evaluation must run in `production-cuda` mode.
-- macOS development is limited to API, upload, job state, and UI work through `dev-mock` mode.
+- This app is intended to run only on the Ubuntu NVIDIA production runtime.
 - Images are required for datasets; JSON annotations are optional.
 - Images-only uploads create inference-only jobs.
 - Images plus JSON annotations create evaluation-and-inference jobs.
-- Do not treat mock results as validated model output.
 - Keep runtime data under `storage/` and do not commit uploaded models, datasets, jobs, or generated results.
 - Keep Docker packaging current with backend and frontend changes.

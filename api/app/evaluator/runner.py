@@ -2,9 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from app.config import get_settings
 from app.evaluator.adapters.classification import ClassificationAdapter
-from app.evaluator.adapters.mock_dev import MockDevAdapter
 from app.evaluator.annotations import is_prediction_correct
 from app.evaluator.dataset_loader import load_manifest
 from app.schemas import JobCreateRequest, JobStatus, MetricsResponse, ResultGalleryItem
@@ -12,8 +10,7 @@ from app.storage import Storage, read_json, write_json
 
 
 def run_job(job_id: str, request: JobCreateRequest) -> None:
-    settings = get_settings()
-    storage = Storage(settings)
+    storage = Storage()
     status_path = storage.job_dir(job_id) / "status.json"
     status = JobStatus.model_validate(read_json(status_path))
 
@@ -21,7 +18,7 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
         manifest = load_manifest(request.dataset_id, storage)
         status.state = "running"
         status.started_at = datetime.now(timezone.utc)
-        status.message = "Running mock inference" if not settings.is_production_cuda else "Running CUDA inference"
+        status.message = "Running CUDA inference"
         status.total = manifest.image_count
         write_json(status_path, status)
 
@@ -41,7 +38,6 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
             except Exception as exc:  # keep the gallery useful even when one image fails
                 failed += 1
                 error = str(exc)
-                prediction = MockDevAdapter().predict(image) if not settings.is_production_cuda else None
 
             if prediction is None:
                 from app.schemas import PredictionSummary
@@ -98,9 +94,6 @@ def run_job(job_id: str, request: JobCreateRequest) -> None:
 
 
 def _select_adapter(adapter_name: str, model_path: str):
-    settings = get_settings()
-    if not settings.is_production_cuda:
-        return MockDevAdapter()
     if adapter_name in {"classification", "custom/no-metrics", "detection"}:
         return ClassificationAdapter(model_path)
     raise ValueError(f"Unsupported adapter: {adapter_name}")

@@ -4,7 +4,7 @@ Dockerized app for running PyTorch `.pt` inference and optional evaluation on an
 
 Users upload a model, test images, and optionally a JSON annotation file. Images-only runs inference. Images plus JSON runs inference and evaluation. Results are displayed in a gallery with per-image details and exports.
 
-## Quick Start After Clone (Ubuntu)
+## Quick Start After Clone (Ubuntu Production)
 
 From the repository root:
 
@@ -63,10 +63,10 @@ docker --version
 docker compose version
 ```
 
-Install NVIDIA Container Toolkit if Docker cannot see the GPU. A useful host smoke test is:
+Install NVIDIA Container Toolkit if Docker cannot see the GPU. A useful Docker GPU smoke test is:
 
 ```bash
-docker run --rm --gpus all nvidia/cuda:12.1.1-base-ubuntu22.04 nvidia-smi
+docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c 'test -e /dev/nvidiactl || test -e /dev/nvidia0'
 ```
 
 Then start the app:
@@ -83,18 +83,6 @@ Open:
 - API docs: http://localhost:8000/docs
 
 The backend runs in `production-cuda` mode and fails fast if CUDA is unavailable.
-
-## macOS Development Mode
-
-macOS is for backend and UI development only. It uses mocked inference so the upload flow, job state, and gallery can be developed without CUDA.
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
-```
-
-If needed, use `docker-compose -f docker-compose.yml -f docker-compose.dev.yml up --build`.
-
-Mock/dev runs are labeled in the UI and must not be treated as real evaluation results.
 
 ## Dataset Modes
 

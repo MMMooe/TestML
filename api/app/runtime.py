@@ -22,14 +22,12 @@ def get_runtime_info() -> RuntimeInfo:
     except Exception:
         pass
 
-    selected_device = "cuda" if settings.is_production_cuda and cuda_available else "mock"
-    if settings.is_production_cuda and not cuda_available:
+    selected_device = "cuda" if cuda_available else "unavailable"
+    if not cuda_available:
         selected_device = "unavailable"
         message = "production-cuda mode requires CUDA, but CUDA is not available"
-    elif settings.is_production_cuda:
-        message = "CUDA runtime is ready"
     else:
-        message = "dev-mock mode is active; results are not real model output"
+        message = "CUDA runtime is ready"
 
     return RuntimeInfo(
         app_mode=settings.app_mode,
@@ -44,8 +42,6 @@ def get_runtime_info() -> RuntimeInfo:
 
 def assert_runtime_ready() -> None:
     settings = get_settings()
-    if not settings.is_production_cuda:
-        return
     runtime = get_runtime_info()
     if not runtime.cuda_available:
         raise RuntimeError(runtime.message)

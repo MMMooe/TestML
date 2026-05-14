@@ -1,12 +1,13 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    app_mode: str = Field(default="dev-mock", validation_alias="APP_MODE")
+    app_mode: Literal["production-cuda"] = Field(default="production-cuda", validation_alias="APP_MODE")
     storage_dir: Path = Field(
         default=Path(__file__).resolve().parents[2] / "storage",
         validation_alias="APP_STORAGE_DIR",

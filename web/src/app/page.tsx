@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Cpu, Database, Server, UploadCloud } from "lucide-react";
+import { Cpu, Database, Server, UploadCloud } from "lucide-react";
 
 import { ResultDetail } from "@/components/result-detail";
 import { ResultsGallery } from "@/components/results-gallery";
@@ -130,7 +130,7 @@ export default function Home() {
                         </div>
                         <div>
                             <h1 className="text-base font-semibold text-stone-950">Model Evaluation Gallery</h1>
-                            <p className="text-sm text-stone-500">Ubuntu CUDA runtime with macOS dev-mock support</p>
+                            <p className="text-sm text-stone-500">Ubuntu CUDA production runtime</p>
                         </div>
                     </div>
                     <RuntimeBadge runtime={runtime} />
@@ -139,16 +139,6 @@ export default function Home() {
 
             <div className="grid min-h-0 gap-4 p-4 lg:grid-cols-[380px_minmax(0,1fr)] lg:p-6">
                 <aside className="space-y-4 overflow-auto scrollbar-thin">
-                    {runtime?.app_mode === "dev-mock" && (
-                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-                            <div className="mb-1 flex items-center gap-2 font-semibold">
-                                <AlertTriangle size={16} aria-hidden="true" />
-                                Dev mock mode
-                            </div>
-                            Real inference and evaluation must run on the Ubuntu NVIDIA machine.
-                        </div>
-                    )}
-
                     <UploadZone label="Model" hint="Required .pt file" accept=".pt" files={modelFiles} onChange={(files) => setModelFiles(files.slice(0, 1))} kind="model" />
                     <UploadZone label="Images" hint="Required unless the zip contains images" accept="image/*" multiple files={imageFiles} onChange={setImageFiles} kind="images" />
                     <UploadZone label="Annotations" hint="Optional JSON for evaluation" accept=".json,application/json" files={annotationFiles} onChange={(files) => setAnnotationFiles(files.slice(0, 1))} kind="json" />
