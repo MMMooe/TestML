@@ -75,6 +75,28 @@ docker pull node:20-alpine
 docker pull nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 ```
 
+## Slow Ubuntu / NVIDIA APT Recovery
+
+After the Docker base images are already pulled, the API image still needs Ubuntu packages during `apt-get update`. For mainland China networks, the CUDA Dockerfile defaults to China-accessible APT mirrors:
+
+```bash
+UBUNTU_APT_MIRROR=https://mirrors.aliyun.com/ubuntu
+NVIDIA_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64
+```
+
+You can override them when starting the app:
+
+```bash
+UBUNTU_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/ubuntu NVIDIA_APT_MIRROR=https://mirrors.ustc.edu.cn/nvidia-cuda/ubuntu2204/x86_64 ./scripts/setup_and_start_ubuntu.sh
+```
+
+If `apt-get update` is still stuck, test the mirrors from the Ubuntu PC:
+
+```bash
+curl -I https://mirrors.aliyun.com/ubuntu
+curl -I https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64/
+```
+
 ## Production: Ubuntu NVIDIA GPU
 
 Prerequisites on the Ubuntu PC:
@@ -126,18 +148,12 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
 
 
+chmod +x scripts/*.sh
+PULL_RETRY_COUNT=20 PULL_RETRY_DELAY=30 ./scripts/setup_and_start_ubuntu.sh
 
 
-Step 5/11 : RUN apt-get update     && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 curl     && rm -rf /var/lib/apt/lists/*
- ---> Running in 8a1f7893af14
-Ign:1 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64  InRelease
-Ign:2 http://archive.ubuntu.com/ubuntu jammy InRelease
-Ign:3 http://security.ubuntu.com/ubuntu jammy-security InRelease
-Ign:4 http://archive.ubuntu.com/ubuntu jammy-updates InRelease
-Ign:1 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64  InRelease
-Ign:3 http://security.ubuntu.com/ubuntu jammy-security InRelease
-
-
-docker pull node:20-alpine
-docker pull nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
-docker pull nvidia/cuda:12.1.1-base-ubuntu22.04
+UBUNTU_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/ubuntu \
+NVIDIA_APT_MIRROR=https://mirrors.ustc.edu.cn/nvidia-cuda/ubuntu2204/x86_64 \
+PULL_RETRY_COUNT=20 \
+PULL_RETRY_DELAY=30 \
+./scripts/setup_and_start_ubuntu.sh

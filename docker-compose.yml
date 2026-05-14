@@ -5,6 +5,8 @@ services:
       dockerfile: Dockerfile.gpu
       args:
         CUDA_BASE_IMAGE: ${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}
+        UBUNTU_APT_MIRROR: ${UBUNTU_APT_MIRROR:-https://mirrors.aliyun.com/ubuntu}
+        NVIDIA_APT_MIRROR: ${NVIDIA_APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64}
     environment:
       APP_MODE: production-cuda
       APP_STORAGE_DIR: /app/storage
