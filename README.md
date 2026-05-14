@@ -128,22 +128,14 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-sudo mkdir -p /etc/docker
-
-sudo tee /etc/docker/daemon.json >/dev/null <<'EOF'
-{
-  "registry-mirrors": [
-    "https://YOUR_MIRROR_URL"
-  ],
-  "dns": ["223.5.5.5", "119.29.29.29", "8.8.8.8"]
-}
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl restart docker
-
-
-docker info | grep -A 10 "Registry Mirrors"
+Step 5/11 : RUN apt-get update     && apt-get install -y --no-install-recommends python3 python3-pip python3-venv libglib2.0-0 libgl1 curl     && rm -rf /var/lib/apt/lists/*
+ ---> Running in 8a1f7893af14
+Ign:1 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64  InRelease
+Ign:2 http://archive.ubuntu.com/ubuntu jammy InRelease
+Ign:3 http://security.ubuntu.com/ubuntu jammy-security InRelease
+Ign:4 http://archive.ubuntu.com/ubuntu jammy-updates InRelease
+Ign:1 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64  InRelease
+Ign:3 http://security.ubuntu.com/ubuntu jammy-security InRelease
 
 
 docker pull node:20-alpine
