@@ -4,8 +4,10 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CUDA_BASE_IMAGE="${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}"
 NODE_BASE_IMAGE="${NODE_BASE_IMAGE:-node:20-alpine}"
-PULL_RETRY_COUNT="${PULL_RETRY_COUNT:-5}"
-PULL_RETRY_DELAY="${PULL_RETRY_DELAY:-15}"
+PULL_RETRY_COUNT="${PULL_RETRY_COUNT:-10}"
+PULL_RETRY_DELAY="${PULL_RETRY_DELAY:-20}"
+DOCKER_BUILDKIT="${DOCKER_BUILDKIT:-0}"
+COMPOSE_DOCKER_CLI_BUILD="${COMPOSE_DOCKER_CLI_BUILD:-0}"
 
 log() {
   echo "[install] $*"
@@ -31,6 +33,13 @@ detect_compose() {
     return
   fi
   fail "Docker Compose not found. Install docker compose v2 or docker-compose."
+}
+
+use_local_docker_context() {
+  unset DOCKER_HOST DOCKER_CONTEXT
+  if docker context inspect default >/dev/null 2>&1; then
+    docker context use default >/dev/null
+  fi
 }
 
 pull_with_retry() {
@@ -59,6 +68,7 @@ main() {
   require_cmd npm
   require_cmd python3
 
+  use_local_docker_context
   detect_compose
 
   log "Installing web dependencies"
@@ -84,7 +94,7 @@ main() {
   fi
 
   log "Building Docker images"
-  CUDA_BASE_IMAGE="$CUDA_BASE_IMAGE" NODE_BASE_IMAGE="$NODE_BASE_IMAGE" "${COMPOSE_CMD[@]}" build
+  CUDA_BASE_IMAGE="$CUDA_BASE_IMAGE" NODE_BASE_IMAGE="$NODE_BASE_IMAGE" DOCKER_BUILDKIT="$DOCKER_BUILDKIT" COMPOSE_DOCKER_CLI_BUILD="$COMPOSE_DOCKER_CLI_BUILD" "${COMPOSE_CMD[@]}" build
 
   log "Install complete"
 }
