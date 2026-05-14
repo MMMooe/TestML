@@ -302,28 +302,35 @@ My read: because `/dev/nvidia*` and `libcuda` are present, I’d first try the `
 
 
 
-docker run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python - <<'PY'
+timeout 60s docker run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
 import torch
-print(torch.__version__, torch.version.cuda)
-print(torch.cuda.is_available())
+
+print("step 1: imported torch", flush=True)
+print("torch:", torch.__version__, flush=True)
+print("torch cuda:", torch.version.cuda, flush=True)
+
+print("step 2: checking device count", flush=True)
+print("device count:", torch.cuda.device_count(), flush=True)
+
+print("step 3: checking cuda available", flush=True)
+print("cuda available:", torch.cuda.is_available(), flush=True)
+
+print("step 4: creating cuda tensor", flush=True)
 x = torch.randn(1, 3, 224, 224, device="cuda")
+
+print("step 5: synchronizing", flush=True)
 torch.cuda.synchronize()
-print(float(x.sum()))
+
+print("cuda tensor ok:", float(x.sum()), flush=True)
 PY
-Unable to find image 'pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime' locally
-2.5.1-cuda12.4-cudnn9-runtime: Pulling from pytorch/pytorch
-7478e0ac0f23: Pull complete 
-15be42192b10: Pull complete 
-000f791482e9: Pull complete 
-4f4fb700ef54: Pull complete 
-b952a9d342d7: Pull complete 
-Digest: sha256:c8268a92a69bd500f8be0e665b2630ee006dadaf7bfbc24249141b15ff622755
-Status: Downloaded newer image for pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime
-ubuntu22@ubuntu22-O-E-M:~/Documents/TestML/TestML$ docker run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python - <<'PY'
+
+
+timeout 60s docker run --rm --gpus all --privileged pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -u - <<'PY'
 import torch
-print(torch.__version__, torch.version.cuda)
-print(torch.cuda.is_available())
-x = torch.randn(1, 3, 224, 224, device="cuda")
+print(torch.__version__, torch.version.cuda, flush=True)
+print(torch.cuda.device_count(), flush=True)
+print(torch.cuda.is_available(), flush=True)
+x = torch.randn(1, device="cuda")
 torch.cuda.synchronize()
-print(float(x.sum()))
+print(float(x), flush=True)
 PY
