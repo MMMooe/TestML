@@ -1,9 +1,11 @@
-FROM node:20-alpine AS deps
+ARG NODE_BASE_IMAGE=node:20-alpine
+
+FROM ${NODE_BASE_IMAGE} AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
-FROM node:20-alpine AS builder
+FROM ${NODE_BASE_IMAGE} AS builder
 WORKDIR /app
 ARG NEXT_PUBLIC_API_URL=http://localhost:8000
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
@@ -11,7 +13,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:20-alpine AS runner
+FROM ${NODE_BASE_IMAGE} AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000

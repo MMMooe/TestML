@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CUDA_BASE_IMAGE="${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}"
+NODE_BASE_IMAGE="${NODE_BASE_IMAGE:-node:20-alpine}"
 PULL_RETRY_COUNT="${PULL_RETRY_COUNT:-5}"
 PULL_RETRY_DELAY="${PULL_RETRY_DELAY:-15}"
 
@@ -75,8 +76,15 @@ main() {
   log "Pre-pulling CUDA base image: $CUDA_BASE_IMAGE"
   pull_with_retry "$CUDA_BASE_IMAGE" "$PULL_RETRY_COUNT" "$PULL_RETRY_DELAY"
 
+  if [[ "${SKIP_NODE_PREPULL:-0}" != "1" ]]; then
+    log "Pre-pulling Node base image: $NODE_BASE_IMAGE"
+    pull_with_retry "$NODE_BASE_IMAGE" "$PULL_RETRY_COUNT" "$PULL_RETRY_DELAY"
+  else
+    log "Skipping Node base image pre-pull (SKIP_NODE_PREPULL=1)"
+  fi
+
   log "Building Docker images"
-  CUDA_BASE_IMAGE="$CUDA_BASE_IMAGE" "${COMPOSE_CMD[@]}" build
+  CUDA_BASE_IMAGE="$CUDA_BASE_IMAGE" NODE_BASE_IMAGE="$NODE_BASE_IMAGE" "${COMPOSE_CMD[@]}" build
 
   log "Install complete"
 }
