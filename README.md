@@ -195,3 +195,38 @@ PY'
 
 
 docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c 'ls -l /dev/nvidia*'
+
+
+
+
+
+
+accept-nvidia-visible-devices-as-volume-mounts = true
+accept-nvidia-visible-devices-envvar-when-unprivileged = false
+#debug = "/var/log/nvidia-container-toolkit.log"
+#no-cgroups = false
+#debug = "/var/log/nvidia-container-runtime.log"
+mode = "legacy"
+[nvidia-container-runtime.modes]
+[nvidia-container-runtime.modes.cdi]
+[nvidia-container-runtime.modes.csv]
+[nvidia-container-runtime.modes.legacy]
+cuda-compat-mode = "ldconfig"
+skip-mode-detection = false
+
+
+ docker run --rm --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
+'echo devices; ls -l /dev/nvidia*; echo libs; ldconfig -p | grep -E "libcuda|libnvidia-ml" || true'
+devices
+ls: cannot access '/dev/nvidia*': No such file or directory
+libs
+        libcudart.so.12 (libc6,x86-64) => /usr/local/cuda/targets/x86_64-linux/lib/libcudart.so.12
+
+
+
+
+docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 -c \
+'echo devices; ls -l /dev/nvidia*; python3 - <<PY
+import os
+print([p for p in os.listdir("/dev") if p.startswith("nvidia")])
+PY'
