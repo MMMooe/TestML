@@ -208,5 +208,43 @@ print("device count:", torch.cuda.device_count())
 print("device:", torch.cuda.get_device_name(0))
 x = torch.randn(1, 3, 224, 224, device="cuda")
 torch.cuda.synchronize()
-print("cuda tensor ok:", float(x.sum()))
-PY
+PYint("cuda tensor ok:", float(x.sum()))
+Thu May 14 15:34:17 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA GeForce RTX 4080        Off |   00000000:01:00.0  On |                  N/A |
+| 38%   34C    P8              5W /  320W |     514MiB /  16376MiB |      0%      Default |
+|                                         |                        |                  N/A |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|    0   N/A  N/A          191668      G   /usr/lib/xorg/Xorg                      201MiB |
+|    0   N/A  N/A          192122      G   /usr/bin/gnome-shell                     27MiB |
+|    0   N/A  N/A          323963      G   .../8054/usr/lib/firefox/firefox        110MiB |
+|    0   N/A  N/A          620996      G   /proc/self/exe                           67MiB |
+|    0   N/A  N/A          621146      G   ...rack-uuid=3190709050030717226         32MiB |
++-----------------------------------------------------------------------------------------+
+torch: 2.3.1+cu121
+torch cuda: 12.1
+/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py:118: UserWarning: CUDA initialization: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero. (Triggered internally at ../c10/cuda/CUDAFunctions.cpp:108.)
+  return torch._C._cuda_getDeviceCount() > 0
+cuda available: False
+device count: 1
+Traceback (most recent call last):
+  File "<stdin>", line 6, in <module>
+  File "/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py", line 414, in get_device_name
+    return get_device_properties(device).name
+  File "/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py", line 444, in get_device_properties
+    _lazy_init()  # will define _get_device_properties
+  File "/usr/local/lib/python3.10/dist-packages/torch/cuda/__init__.py", line 293, in _lazy_init
+    torch._C._cuda_init()
+RuntimeError: CUDA unknown error - this may be due to an incorrectly set up environment, e.g. changing env variable CUDA_VISIBLE_DEVICES after program start. Setting the available devices to be zero.
