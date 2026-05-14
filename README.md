@@ -163,5 +163,19 @@ curl -4 -I --max-time 10 http://security.ubuntu.com/ubuntu/dists/jammy-security/
 curl -4 -I --max-time 10 https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/InRelease
 
 
+sudo mkdir -p /etc/docker
+
+sudo tee /etc/docker/daemon.json >/dev/null <<'EOF'
+{
+  "dns": ["8.8.8.8", "1.1.1.1", "223.5.5.5"]
+}
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl restart docker
+
+
+cat /etc/resolv.conf
+
 docker run --rm --network host --entrypoint /bin/sh nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 -c \
-'apt-get update -o Acquire::Retries=0 -o Acquire::http::Timeout=10 -o Acquire::https::Timeout=10 -o Acquire::ForceIPv4=true'
+'cat /etc/resolv.conf && getent hosts archive.ubuntu.com && getent hosts developer.download.nvidia.com'
