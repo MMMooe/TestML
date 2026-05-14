@@ -121,6 +121,15 @@ Install NVIDIA Container Toolkit if Docker cannot see the GPU. A useful Docker G
 docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c 'test -e /dev/nvidiactl || test -e /dev/nvidia0'
 ```
 
+If the host `nvidia-smi` works but containers print `WARNING: The NVIDIA Driver was not detected`, reconfigure Docker's NVIDIA runtime:
+
+```bash
+sudo apt-get install -y nvidia-container-toolkit
+sudo nvidia-ctk runtime configure --runtime=docker
+sudo systemctl restart docker
+docker info | grep -i nvidia
+```
+
 Then start the app:
 
 ```bash
@@ -154,88 +163,3 @@ These folders are ignored by git except for `.gitkeep` placeholders.
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
-
-
-
-SKIP_GPU_SMOKE_TEST=1 SKIP_BUILD=1 SKIP_CUDA_PREPULL=1 SKIP_NODE_PREPULL=1 ./scripts/start_ubuntu_production.sh
-[start] Repository root: /home/ubuntu22/Documents/TestML/TestML
-[start] Docker version: Docker version 26.1.4, build 5650f9b
-Current context is now "default"
-[start] Using Docker context: default
-[start] Using Docker Compose command: docker compose
-[start] Configuration: CUDA_BASE_IMAGE=nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 NODE_BASE_IMAGE=node:20-alpine GPU_SMOKE_IMAGE=nvidia/cuda:12.1.1-base-ubuntu22.04
-[start] Configuration: SKIP_BUILD=1 SKIP_GPU_SMOKE_TEST=1 SKIP_CUDA_PREPULL=1 SKIP_NODE_PREPULL=1
-[start] Checking NVIDIA GPU visibility with nvidia-smi
-Thu May 14 13:03:13 2026       
-+-----------------------------------------------------------------------------------------+
-| NVIDIA-SMI 580.126.09             Driver Version: 580.126.09     CUDA Version: 13.0     |
-+-----------------------------------------+------------------------+----------------------+
-| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
-| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
-|                                         |                        |               MIG M. |
-|=========================================+========================+======================|
-|   0  NVIDIA GeForce RTX 4080        Off |   00000000:01:00.0  On |                  N/A |
-| 38%   34C    P8              6W /  320W |     391MiB /  16376MiB |      0%      Default |
-|                                         |                        |                  N/A |
-+-----------------------------------------+------------------------+----------------------+
-
-+-----------------------------------------------------------------------------------------+
-| Processes:                                                                              |
-|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
-|        ID   ID                                                               Usage      |
-|=========================================================================================|
-|    0   N/A  N/A          191668      G   /usr/lib/xorg/Xorg                      153MiB |
-|    0   N/A  N/A          192122      G   /usr/bin/gnome-shell                     28MiB |
-|    0   N/A  N/A          294247      G   /proc/self/exe                           80MiB |
-|    0   N/A  N/A          323963      G   .../8054/usr/lib/firefox/firefox         31MiB |
-|    0   N/A  N/A         2850136      G   ...rack-uuid=3190708988185955192         24MiB |
-+-----------------------------------------------------------------------------------------+
-[start] PASS: Checking NVIDIA GPU visibility with nvidia-smi
-[start] Skipping Docker GPU smoke test (SKIP_GPU_SMOKE_TEST=1)
-[start] Skipping CUDA base image pre-pull (SKIP_CUDA_PREPULL=1)
-[start] Skipping Node base image pre-pull (SKIP_NODE_PREPULL=1)
-[start] Skipping Docker image build (SKIP_BUILD=1)
-[start] Starting production stack
-Attaching to api-1, web-1
-api-1  | 
-api-1  | ==========
-api-1  | == CUDA ==
-api-1  | ==========
-api-1  | 
-api-1  | CUDA Version 12.1.1
-api-1  | 
-api-1  | Container image Copyright (c) 2016-2023, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
-api-1  | 
-api-1  | This container image and its contents are governed by the NVIDIA Deep Learning Container License.
-api-1  | By pulling and using the container, you accept the terms and conditions of this license:
-api-1  | https://developer.nvidia.com/ngc/nvidia-deep-learning-container-license
-api-1  | 
-api-1  | A copy of this license is made available in this container at /NGC-DL-CONTAINER-LICENSE for your convenience.
-Container testml-api-1 Waiting 
-api-1  | 
-api-1  | WARNING: The NVIDIA Driver was not detected.  GPU functionality will not be available.
-api-1  |    Use the NVIDIA Container Toolkit to start this container with GPU support; see
-api-1  |    https://docs.nvidia.com/datacenter/cloud-native/ .
-api-1  | 
-api-1  | INFO:     Started server process [1]
-api-1  | INFO:     Waiting for application startup.
-api-1  | ERROR:    Traceback (most recent call last):
-api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 732, in lifespan
-api-1  |     async with self.lifespan_context(app) as maybe_state:
-api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 608, in __aenter__
-api-1  |     await self._router.startup()
-api-1  |   File "/usr/local/lib/python3.10/dist-packages/starlette/routing.py", line 711, in startup
-api-1  |     handler()
-api-1  |   File "/app/app/main.py", line 29, in startup
-api-1  |     assert_runtime_ready()
-api-1  |   File "/app/app/runtime.py", line 47, in assert_runtime_ready
-api-1  |     raise RuntimeError(runtime.message)
-api-1  | RuntimeError: production-cuda mode requires CUDA, but CUDA is not available
-api-1  | 
-api-1  | ERROR:    Application startup failed. Exiting.
-api-1 exited with code 3
-Container testml-api-1 Error dependency api failed to start
-dependency failed to start: container testml-api-1 exited (3)
-[start] Current Compose service status
-NAME      IMAGE     COMMAND   SERVICE   CREATED   STATUS    PORTS
-[start][error] Production stack failed or exited unexpectedly (exit 1)

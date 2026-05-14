@@ -50,6 +50,16 @@ show_compose_status() {
   "${COMPOSE_CMD[@]}" ps || warn "Could not read Compose service status"
 }
 
+show_docker_nvidia_runtime_status() {
+  log "Checking Docker NVIDIA runtime registration"
+  if docker info 2>/dev/null | grep -qi 'Runtimes:.*nvidia'; then
+    log "PASS: Docker reports an NVIDIA runtime"
+  else
+    warn "Docker does not list an NVIDIA runtime. Compose GPU startup may fail."
+    warn "If the GPU smoke test fails, run: sudo nvidia-ctk runtime configure --runtime=docker && sudo systemctl restart docker"
+  fi
+}
+
 detect_compose() {
   if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD=(docker compose)
@@ -109,6 +119,7 @@ main() {
   log "Configuration: SKIP_BUILD=${SKIP_BUILD:-0} SKIP_GPU_SMOKE_TEST=${SKIP_GPU_SMOKE_TEST:-0} SKIP_CUDA_PREPULL=${SKIP_CUDA_PREPULL:-0} SKIP_NODE_PREPULL=${SKIP_NODE_PREPULL:-0}"
 
   run_step "Checking NVIDIA GPU visibility with nvidia-smi" nvidia-smi
+  show_docker_nvidia_runtime_status
 
   if [[ "${SKIP_GPU_SMOKE_TEST:-0}" != "1" ]]; then
     log "Pre-pulling GPU smoke-test image: $GPU_SMOKE_IMAGE"
@@ -131,6 +142,7 @@ EOF
     fi
   else
     log "Skipping Docker GPU smoke test (SKIP_GPU_SMOKE_TEST=1)"
+    warn "The API requires CUDA. If Docker cannot expose the GPU, the API container will fail during startup."
   fi
 
   if [[ "${SKIP_CUDA_PREPULL:-0}" != "1" ]]; then
