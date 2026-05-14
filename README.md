@@ -170,63 +170,80 @@ Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models a
 
 
 
-sudo cat /etc/nvidia-container-runtime/config.toml | grep -E 'mode|no-cgroups|debug|accept-nvidia-visible-devices'
+The key problem is still here:
 
+```text
+ls: cannot access '/dev/nvidia*': No such file or directory
+```
 
+So the NVIDIA runtime is being selected, but it is still not mounting the driver devices/libs into the container.
+
+One suspicious config line is:
+
+```toml
+accept-nvidia-visible-devices-envvar-when-unprivileged = false
+```
+
+Your direct test uses:
+
+```bash
+-e NVIDIA_VISIBLE_DEVICES=all
+```
+
+but the runtime may be refusing to honor that env var path. I’d change that to `true`, set Docker’s default runtime to NVIDIA, restart Docker, then retest.
+
+Run this on Ubuntu:
+
+```bash
+sudo nvidia-ctk config --set accept-nvidia-visible-devices-envvar-when-unprivileged=true --in-place
 sudo nvidia-ctk config --set nvidia-container-cli.no-cgroups=false --in-place
 sudo nvidia-ctk config --set nvidia-container-runtime.mode=legacy --in-place
-sudo nvidia-ctk config --set nvidia-container-runtime.runtimes='["docker-runc","runc"]' --in-place
+sudo nvidia-ctk runtime configure --runtime=docker --set-as-default
 sudo systemctl restart docker
+```
 
+Then check Docker now says default runtime is NVIDIA:
 
-docker run --rm --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
+```bash
+docker info | grep -Ei 'Runtimes|Default Runtime'
+```
+
+Expected:
+
+```text
+Runtimes: ... nvidia ...
+Default Runtime: nvidia
+```
+
+Then retest with no `nvidia-smi`, because that CUDA base image may not include it:
+
+```bash
+docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
 'echo devices; ls -l /dev/nvidia*; echo libs; ldconfig -p | grep -E "libcuda|libnvidia-ml" || true'
+```
 
+Expected: you should see `/dev/nvidia0`, `/dev/nvidiactl`, and `libcuda` / `libnvidia-ml`.
 
+If that passes, start the app:
+
+```bash
+SKIP_BUILD=1 SKIP_CUDA_PREPULL=1 SKIP_NODE_PREPULL=1 ./scripts/start_ubuntu_production.sh
+```
+
+If it still fails, enable NVIDIA runtime debug logs:
+
+```bash
+sudo nvidia-ctk config --set nvidia-container-runtime.debug=/var/log/nvidia-container-runtime.log --in-place
+sudo nvidia-ctk config --set nvidia-container-cli.debug=/var/log/nvidia-container-toolkit.log --in-place
+sudo systemctl restart docker
+```
+
+Run the failing Docker test again, then inspect:
+
+```bash
+sudo tail -n 200 /var/log/nvidia-container-runtime.log
+sudo tail -n 200 /var/log/nvidia-container-toolkit.log
 sudo journalctl -u docker --no-pager -n 120
+```
 
-
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 -c \
-'echo devices; ls -l /dev/nvidia*; python3 - <<PY
-import os
-print([p for p in os.listdir("/dev") if p.startswith("nvidia")])
-PY'
-
-
-
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c 'ls -l /dev/nvidia*'
-
-
-
-
-
-
-accept-nvidia-visible-devices-as-volume-mounts = true
-accept-nvidia-visible-devices-envvar-when-unprivileged = false
-#debug = "/var/log/nvidia-container-toolkit.log"
-#no-cgroups = false
-#debug = "/var/log/nvidia-container-runtime.log"
-mode = "legacy"
-[nvidia-container-runtime.modes]
-[nvidia-container-runtime.modes.cdi]
-[nvidia-container-runtime.modes.csv]
-[nvidia-container-runtime.modes.legacy]
-cuda-compat-mode = "ldconfig"
-skip-mode-detection = false
-
-
- docker run --rm --runtime=nvidia -e NVIDIA_VISIBLE_DEVICES=all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c \
-'echo devices; ls -l /dev/nvidia*; echo libs; ldconfig -p | grep -E "libcuda|libnvidia-ml" || true'
-devices
-ls: cannot access '/dev/nvidia*': No such file or directory
-libs
-        libcudart.so.12 (libc6,x86-64) => /usr/local/cuda/targets/x86_64-linux/lib/libcudart.so.12
-
-
-
-
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04 -c \
-'echo devices; ls -l /dev/nvidia*; python3 - <<PY
-import os
-print([p for p in os.listdir("/dev") if p.startswith("nvidia")])
-PY'
+Short version: do not debug the app further yet. The blocker is still Docker NVIDIA runtime injection. Once `docker run --gpus all ... ls -l /dev/nvidia*` works, the app should get past the CUDA startup check.
