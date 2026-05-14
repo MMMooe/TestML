@@ -3,10 +3,15 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile.gpu
+      network: ${DOCKER_BUILD_NETWORK:-host}
       args:
         CUDA_BASE_IMAGE: ${CUDA_BASE_IMAGE:-nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04}
-        UBUNTU_APT_MIRROR: ${UBUNTU_APT_MIRROR:-https://mirrors.aliyun.com/ubuntu}
-        NVIDIA_APT_MIRROR: ${NVIDIA_APT_MIRROR:-https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64}
+        UBUNTU_APT_MIRROR: ${UBUNTU_APT_MIRROR:-http://archive.ubuntu.com/ubuntu}
+        UBUNTU_SECURITY_APT_MIRROR: ${UBUNTU_SECURITY_APT_MIRROR:-http://security.ubuntu.com/ubuntu}
+        NVIDIA_APT_MIRROR: ${NVIDIA_APT_MIRROR:-https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64}
+        APT_RETRIES: ${APT_RETRIES:-3}
+        APT_TIMEOUT: ${APT_TIMEOUT:-20}
+        APT_FORCE_IPV4: ${APT_FORCE_IPV4:-true}
     environment:
       APP_MODE: production-cuda
       APP_STORAGE_DIR: /app/storage
@@ -34,6 +39,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
+      network: ${DOCKER_BUILD_NETWORK:-host}
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8000
         NODE_BASE_IMAGE: ${NODE_BASE_IMAGE:-node:20-alpine}
