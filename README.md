@@ -112,10 +112,14 @@ Important environment variables:
 - `APP_MODE=production-cuda`
 - `APP_REQUIRE_TENSORRT=true`
 - `APP_STORAGE_DIR=/absolute/path/to/storage`
-- `APP_CORS_ORIGINS=http://localhost:3000`
+- `APP_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
 - `NEXT_PUBLIC_API_URL=http://localhost:8000`
+- `API_PUBLIC_HOST=localhost`
+- `WEB_PUBLIC_HOST=localhost`
 
 Copy `.env.example` to `.env` if you need to override backend defaults. Copy `web/.env.local.example` to `web/.env.local` if you need to override the frontend API URL outside the launcher scripts.
+
+`scripts/start_conda.sh` derives defaults from the host/port settings and includes both `localhost` and `127.0.0.1` in CORS origins. For LAN access, set `API_PUBLIC_HOST` and `WEB_PUBLIC_HOST` (or set `NEXT_PUBLIC_API_URL` and `APP_CORS_ORIGINS` explicitly).
 
 ## Runtime Check
 

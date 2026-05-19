@@ -17,12 +17,24 @@ if [[ -f "$ROOT_DIR/.env" ]]; then
   set +a
 fi
 
+origin_host_for_browser() {
+  local host="$1"
+  if [[ "$host" == "0.0.0.0" || "$host" == "::" ]]; then
+    echo "localhost"
+    return
+  fi
+  echo "$host"
+}
+
+API_PUBLIC_HOST="${API_PUBLIC_HOST:-$(origin_host_for_browser "$API_HOST")}"
+WEB_PUBLIC_HOST="${WEB_PUBLIC_HOST:-$(origin_host_for_browser "$WEB_HOST")}"
+
 APP_MODE="${APP_MODE:-production-cuda}"
 APP_REQUIRE_TENSORRT="${APP_REQUIRE_TENSORRT:-true}"
 APP_STORAGE_DIR="${APP_STORAGE_DIR:-$ROOT_DIR/storage}"
-APP_CORS_ORIGINS="${APP_CORS_ORIGINS:-http://localhost:$WEB_PORT}"
+APP_CORS_ORIGINS="${APP_CORS_ORIGINS:-http://$WEB_PUBLIC_HOST:$WEB_PORT,http://localhost:$WEB_PORT,http://127.0.0.1:$WEB_PORT}"
 APP_MAX_UPLOAD_MB="${APP_MAX_UPLOAD_MB:-4096}"
-NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://localhost:$API_PORT}"
+NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-http://$API_PUBLIC_HOST:$API_PORT}"
 
 API_PID=""
 WEB_PID=""

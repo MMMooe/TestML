@@ -151,9 +151,11 @@ WEB_MODE=production ./scripts/start_conda.sh
 - `APP_MODE=production-cuda`
 - `APP_REQUIRE_TENSORRT=true`
 - `APP_STORAGE_DIR=/absolute/path/to/storage`
-- `APP_CORS_ORIGINS=http://localhost:3000`
+- `APP_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000`
 - `APP_MAX_UPLOAD_MB=4096`
 - `NEXT_PUBLIC_API_URL=http://localhost:8000`
+- `API_PUBLIC_HOST=localhost`
+- `WEB_PUBLIC_HOST=localhost`
 
 如果需要覆盖后端配置，可以复制模板：
 
@@ -170,6 +172,8 @@ cp web/.env.local.example web/.env.local
 ```
 
 注意：`NEXT_PUBLIC_API_URL` 会在前端构建时写入浏览器 bundle。如果修改了该变量，并且使用 `WEB_MODE=production`，需要重新构建前端。
+
+`scripts/start_conda.sh` 会根据 host/port 默认推导地址，并在 CORS 默认值中同时包含 `localhost` 和 `127.0.0.1`。如果从局域网设备访问，建议设置 `API_PUBLIC_HOST` 和 `WEB_PUBLIC_HOST`（或显式设置 `NEXT_PUBLIC_API_URL` 与 `APP_CORS_ORIGINS`）。
 
 ## 7. 启动后的验证
 

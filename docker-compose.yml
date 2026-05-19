@@ -17,7 +17,7 @@ services:
       APP_MODE: production-cuda
       APP_REQUIRE_TENSORRT: "true"
       APP_STORAGE_DIR: /app/storage
-      APP_CORS_ORIGINS: http://localhost:3000
+      APP_CORS_ORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
     gpus: all
