@@ -1,0 +1,11 @@
+name: testlm
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - nodejs=20
+  - pip>=24
+  - setuptools
+  - wheel
+  - pip:
+      - -r api/requirements-gpu.txt

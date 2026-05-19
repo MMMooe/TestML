@@ -1,150 +1,137 @@
 # Model Evaluation Gallery
 
-Dockerized app for running PyTorch `.pt` inference and optional evaluation on an Ubuntu PC with an NVIDIA GPU.
+Conda-first local app for running PyTorch `.pt` inference and optional evaluation on an Ubuntu PC with an NVIDIA GPU.
+
+Chinese Ubuntu setup guide: [README.zh-CN.md](README.zh-CN.md)
 
 Users upload a model, test images, and optionally a JSON annotation file. Images-only runs inference. Images plus JSON runs inference and evaluation. Results are displayed in a gallery with per-image details and exports.
 
 TensorRT `.plan` engines are supported as a first-class production path. When a `.plan` file is uploaded with a `.pt` model, the job uses TensorRT by default and fails clearly if the engine cannot run on the current TensorRT/CUDA/GPU runtime. The UI has an explicit fallback checkbox if you want to allow the `.pt` CUDA model to run instead.
 
-## Quick Start After Clone (Ubuntu Production)
+## Quick Start With Conda
 
-From the repository root:
+Run these commands from the repository root on the Ubuntu NVIDIA machine:
 
 ```bash
 chmod +x scripts/*.sh
-./scripts/setup_and_start_ubuntu.sh
+./scripts/setup_conda.sh
+./scripts/start_conda.sh
 ```
-
-What this does:
-
-- Installs web dependencies in `web/`.
-- Creates `api/.venv` and installs API dependencies.
-- Pre-pulls CUDA and Node base images with retry.
-- Builds Docker images.
-- Verifies GPU availability and starts the production stack.
 
 Open:
 
 - UI: http://localhost:3000
 - API docs: http://localhost:8000/docs
+- Runtime status: http://localhost:8000/runtime
 
-To stop:
+Stop the app with `Ctrl-C` in the terminal running `scripts/start_conda.sh`.
 
-```bash
-docker compose down
-```
+## Local Runtime Requirements
 
-If the machine uses the legacy Compose binary, use `docker-compose down`.
+The production runtime is intentionally strict. The backend starts in `production-cuda` mode and fails fast unless CUDA is available. TensorRT is required by default so `.plan` engines are validated against the same local runtime that will execute jobs.
 
-## Install and Start Separately (Ubuntu)
-
-```bash
-chmod +x scripts/*.sh
-./scripts/install_ubuntu.sh
-./scripts/start_ubuntu_production.sh
-```
-
-The start script builds images first, then starts containers with `up --no-build`. This avoids a second build-time registry metadata lookup during startup.
-
-## Slow Docker Hub / Timeout Recovery
-
-If your Ubuntu server has slow or unstable access to Docker Hub, use longer retries:
-
-```bash
-PULL_RETRY_COUNT=20 PULL_RETRY_DELAY=30 ./scripts/start_ubuntu_production.sh
-```
-
-The scripts default to `DOCKER_BUILDKIT=0` and `COMPOSE_DOCKER_CLI_BUILD=0` so Docker can use already-pulled local base images instead of repeatedly resolving remote image metadata during build.
-
-If the images were already built successfully and you only need to start containers:
-
-```bash
-SKIP_BUILD=1 ./scripts/start_ubuntu_production.sh
-```
-
-If your registry/network requires alternate image names, override the base images:
-
-```bash
-CUDA_BASE_IMAGE=nvidia/cuda:12.1.1-runtime-ubuntu22.04 NODE_BASE_IMAGE=node:20-alpine ./scripts/start_ubuntu_production.sh
-```
-
-The API image installs TensorRT runtime packages from the NVIDIA APT repository. If package names differ on your selected mirror, override them:
-
-```bash
-TENSORRT_APT_PACKAGES="python3-libnvinfer libnvinfer8 libnvinfer-plugin8 libnvinfer-bin" ./scripts/start_ubuntu_production.sh
-```
-
-If it still fails, verify host DNS/network:
-
-```bash
-getent hosts registry-1.docker.io
-curl -I https://registry-1.docker.io/v2/
-docker pull node:20-alpine
-docker pull nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
-```
-
-## Slow Ubuntu / NVIDIA APT Recovery
-
-After the Docker base images are already pulled, the API image still needs Ubuntu packages during `apt-get update`. The scripts default to official Ubuntu and NVIDIA repositories, which is usually best when the Ubuntu PC uses a VPN exit node outside mainland China:
-
-```bash
-UBUNTU_APT_MIRROR=http://archive.ubuntu.com/ubuntu
-UBUNTU_SECURITY_APT_MIRROR=http://security.ubuntu.com/ubuntu
-NVIDIA_APT_MIRROR=https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64
-```
-
-Docker builds use the host network by default so `apt-get` follows the Ubuntu host's VPN and DNS route more closely:
-
-```bash
-DOCKER_BUILD_NETWORK=host ./scripts/setup_and_start_ubuntu.sh
-```
-
-If the VPN is off and the machine needs mainland mirrors, opt in explicitly:
-
-```bash
-UBUNTU_APT_MIRROR=https://mirrors.aliyun.com/ubuntu UBUNTU_SECURITY_APT_MIRROR=https://mirrors.aliyun.com/ubuntu NVIDIA_APT_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/nvidia-cuda/ubuntu2204/x86_64 ./scripts/setup_and_start_ubuntu.sh
-```
-
-If `apt-get update` is still stuck, test the selected repositories from the Ubuntu PC:
-
-```bash
-curl -I http://archive.ubuntu.com/ubuntu
-curl -I http://security.ubuntu.com/ubuntu
-curl -I https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/
-```
-
-## Production: Ubuntu NVIDIA GPU
-
-Prerequisites on the Ubuntu PC:
+Prerequisites:
 
 ```bash
 nvidia-smi
-docker --version
-docker compose version
+conda --version
 ```
 
-Install NVIDIA Container Toolkit if Docker cannot see the GPU. A useful Docker GPU smoke test is:
+Recommended Ubuntu host packages:
 
 ```bash
-docker run --rm --gpus all --entrypoint /bin/sh nvidia/cuda:12.1.1-base-ubuntu22.04 -c 'test -e /dev/nvidiactl || test -e /dev/nvidia0'
+sudo apt-get update
+sudo apt-get install -y libglib2.0-0 libgl1
 ```
 
-If the host `nvidia-smi` works but containers print `WARNING: The NVIDIA Driver was not detected`, reconfigure Docker's NVIDIA runtime:
+The Conda environment includes Python 3.10, Node.js 20, FastAPI, Next.js dependencies, PyTorch CUDA 12.1, and CUDA Python. TensorRT packaging varies by Ubuntu/NVIDIA setup, so verify it explicitly inside the Conda environment:
 
 ```bash
-sudo apt-get install -y nvidia-container-toolkit
-sudo nvidia-ctk runtime configure --runtime=docker
-sudo systemctl restart docker
-docker info | grep -i nvidia
+conda activate testlm
+python - <<'PY'
+import torch
+import tensorrt as trt
+from cuda import cudart
+
+print(torch.__version__, torch.version.cuda, torch.cuda.is_available())
+print(trt.__version__, hasattr(cudart, "cudaMalloc"))
+PY
 ```
 
-Then start the app:
+If TensorRT is not available, install the TensorRT runtime and Python bindings that match the CUDA runtime, GPU, and `.plan` files you intend to use. One pip-based option to try is:
 
 ```bash
-./scripts/start_ubuntu_production.sh
+INSTALL_TENSORRT=1 ./scripts/setup_conda.sh
 ```
 
-The backend runs in `production-cuda` mode and fails fast if CUDA is unavailable.
+If that does not match your host, install TensorRT through NVIDIA's Ubuntu packages or another verified local method, then rerun:
+
+```bash
+./scripts/check_conda_runtime.sh
+```
+
+## Setup Details
+
+The default environment name is `testlm`. To use another name:
+
+```bash
+ENV_NAME=my-testlm ./scripts/setup_conda.sh
+ENV_NAME=my-testlm ./scripts/start_conda.sh
+```
+
+The setup script performs these steps:
+
+- Creates or updates the Conda environment from `environment.yml`.
+- Installs API GPU dependencies from `api/requirements-gpu.txt`.
+- Installs frontend dependencies in `web/` using `npm ci` when `package-lock.json` exists.
+- Creates the runtime storage directories under `storage/`.
+- Runs a CUDA and TensorRT preflight check.
+
+To skip only the preflight while preparing a machine that does not yet have TensorRT installed:
+
+```bash
+SKIP_RUNTIME_CHECK=1 ./scripts/setup_conda.sh
+```
+
+## Starting Modes
+
+Development mode starts the Next.js dev server:
+
+```bash
+./scripts/start_conda.sh
+```
+
+Production-like local mode builds the frontend first and then starts `next start`:
+
+```bash
+WEB_MODE=production ./scripts/start_conda.sh
+```
+
+Important environment variables:
+
+- `APP_MODE=production-cuda`
+- `APP_REQUIRE_TENSORRT=true`
+- `APP_STORAGE_DIR=/absolute/path/to/storage`
+- `APP_CORS_ORIGINS=http://localhost:3000`
+- `NEXT_PUBLIC_API_URL=http://localhost:8000`
+
+Copy `.env.example` to `.env` if you need to override backend defaults. Copy `web/.env.local.example` to `web/.env.local` if you need to override the frontend API URL outside the launcher scripts.
+
+## Runtime Check
+
+Before startup, check the local Conda runtime:
+
+```bash
+./scripts/check_conda_runtime.sh
+```
+
+After startup, also check the running API:
+
+```bash
+CHECK_SERVER=1 ./scripts/check_conda_runtime.sh
+```
+
+The `/runtime` response should report `cuda_available: true`, `selected_device: cuda`, `tensorrt_required: true`, and `tensorrt_available: true`.
 
 ## Dataset Modes
 
@@ -166,7 +153,7 @@ TensorRT engines may be fixed to the batch shape used when the `.plan` was built
 
 ## TensorRT Engines
 
-TensorRT engines are not portable model files. Build each `.plan` for the same TensorRT major/minor version, CUDA runtime family, GPU architecture, input shape, and precision profile used by the production API image.
+TensorRT engines are not portable model files. Build each `.plan` for the same TensorRT major/minor version, CUDA runtime family, GPU architecture, input shape, and precision profile used by the local Conda runtime.
 
 Expected behavior:
 
@@ -182,15 +169,19 @@ curl http://localhost:8000/runtime
 
 ## Storage
 
-Runtime data is mounted under `storage/`:
+Runtime data is stored under `storage/` by default:
 
 - `storage/uploads/models/`
 - `storage/uploads/datasets/`
 - `storage/jobs/`
 - `storage/results/`
 
-These folders are ignored by git except for `.gitkeep` placeholders.
+These folders are ignored by git except for `.gitkeep` placeholders. Uploaded models, datasets, jobs, and generated results should stay out of version control.
 
 ## Notes On `.pt` Files
 
 Plain PyTorch `.pt` files can use pickle under the hood. Treat uploaded models as trusted local engineering artifacts. TorchScript `.pt` files are preferred for predictable deployment.
+
+## Legacy Docker Files
+
+Docker files remain in the repository only as a transition reference for the previous packaging scheme. The supported local workflow is the Conda path above.

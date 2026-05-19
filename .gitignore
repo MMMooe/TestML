@@ -28,6 +28,7 @@ storage/results/**
 .env
 .env.*
 !.env.example
+!web/.env.local.example
 
 # OS/editor
 .DS_Store
